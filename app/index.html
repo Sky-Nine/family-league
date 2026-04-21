@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>魔幻籃球聯盟 - Noob Camp</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cubic-11@1.0.1/dist/cubic-11.min.css">
+  <style>
+    body {
+      font-family: 'Cubic 11', sans-serif;
+      background-color: #0f172a;
+      /* 更深一點的底色 */
+      color: white;
+      -webkit-font-smoothing: none;
+    }
+
+    .pixel-border {
+      box-shadow: -4px 0 0 0 white, 4px 0 0 0 white, 0 -4px 0 0 white, 0 4px 0 0 white;
+      margin: 4px;
+    }
+
+    .pixel-border-blue {
+      box-shadow: -4px 0 0 0 #3b82f6, 4px 0 0 0 #3b82f6, 0 -4px 0 0 #3b82f6, 0 4px 0 0 #3b82f6;
+    }
+
+    .pixel-border-red {
+      box-shadow: -4px 0 0 0 #ef4444, 4px 0 0 0 #ef4444, 0 -4px 0 0 #ef4444, 0 4px 0 0 #ef4444;
+    }
+
+    .pixel-border-green {
+      box-shadow: -4px 0 0 0 #22c55e, 4px 0 0 0 #22c55e, 0 -4px 0 0 #22c55e, 0 4px 0 0 #22c55e;
+    }
+
+    .pixel-border-yellow {
+      box-shadow: -4px 0 0 0 #eab308, 4px 0 0 0 #eab308, 0 -4px 0 0 #eab308, 0 4px 0 0 #eab308;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0;
+      }
+    }
+
+    .animate-blink {
+      animation: blink 1s step-start infinite;
+    }
+
+    @keyframes marqueeMove {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    .animate-marquee {
+      width: max-content;
+      animation: marqueeMove 45s linear infinite;
+    }
+
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    /* Custom Checkbox */
+    .checkbox-container input:checked+div {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    /* Player Sprites */
+    .player-sprite {
+      image-rendering: pixelated;
+      display: inline-block;
+      background-color: transparent;
+    }
+
+    .p1-height {
+      height: 96px;
+    }
+
+    .p2-height {
+      height: 80px;
+    }
+
+    /* 精確對色與固定比例 */
+    .sprite-box-bg {
+      background-color: #1a202c !important;
+    }
+
+    /* Arena Visual Playground */
+    #visualArena {
+      height: 120px;
+      position: relative;
+      background: linear-gradient(to bottom, #111729, #1c2541);
+      overflow: hidden;
+      border-bottom: 2px solid #2d3748;
+    }
+
+    .arena-actor {
+      position: absolute;
+      bottom: 10px;
+      transition: left 0.5s ease-in-out;
+    }
+
+    /* Idle Animations */
+    @keyframes wander {
+
+      0%,
+      100% {
+        left: 10%;
+      }
+
+      50% {
+        left: 80%;
+      }
+    }
+
+    @keyframes bounce-high {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+
+    @keyframes slime-wiggle {
+
+      0%,
+      100% {
+        transform: scale(1, 1);
+      }
+
+      50% {
+        transform: scale(1.2, 0.8);
+      }
+    }
+
+    .animate-wander {
+      animation: wander 8s infinite ease-in-out;
+    }
+
+    .animate-bounce-high {
+      animation: bounce-high 2s infinite ease-in-out;
+    }
+
+    .animate-wiggle {
+      animation: slime-wiggle 1s infinite alternate;
+    }
+
+    #introModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.96);
+      z-index: 9999;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #introModal::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 20%;
+      background: linear-gradient(to bottom, black 60%, transparent 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #introModal::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 20%;
+      background: linear-gradient(to top, black 60%, transparent 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #introModal.hidden {
+      display: none;
+    }
+
+    #introContent {
+      width: 100%;
+      max-width: 540px;
+      padding: 2rem 2rem 0;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen text-base md:text-lg overflow-y-scroll">
+
+  <!-- Intro Story Modal -->
+  <div id="introModal" class="hidden" onmousedown="setIntroHolding(true)" onmouseup="setIntroHolding(false)"
+    onmouseleave="setIntroHolding(false)" ontouchstart="setIntroHolding(true)" ontouchend="setIntroHolding(false)">
+    <div id="introContent">
+      <div class="text-yellow-400 text-3xl font-bold mb-6">🏀 魔幻籃球聯盟 🏀</div>
+      <div class="text-gray-300 text-lg leading-loose space-y-4">
+        <p>世界上有一種籃球，不是在球場上打的。</p>
+        <p>它在每一個清晨整理好的書桌上彈跳；<br>它在每一道認真寫完的數學題裡旋轉；<br>它在每一個清晨整理好的書桌上彈跳；</p>
+        <p class="text-yellow-300 font-bold">這種籃球，叫做行動之球。</p>
+
+        <div class="my-8 border-t border-gray-700"></div>
+
+        <p class="text-blue-300 text-xl font-bold">球員檔案</p>
+        <p><span class="text-yellow-400 font-bold">Sheldon</span> — 聯盟老將，眼神沉穩，出手冷靜。他有一種天賦：越難的任務，越能激出那種讓全場尖叫的致命三分。</p>
+        <p><span class="text-green-400 font-bold">Leonard</span> — 聯盟新星，腳步靈活，笑起來整個球場都亮了。球路還在成形，但有一種東西是天生的 -「不服輸」。</p>
+
+        <div class="my-8 border-t border-gray-700"></div>
+
+        <p class="text-blue-300 text-xl font-bold">對手是誰？</p>
+        <p>對面站著的，不是壞人。</p>
+        <p>是<span class="text-orange-400 font-bold">混亂隊</span> — 一群調皮的怪獸，整天無所事事，到處搗蛋。他們最怕的，不是拳頭，而是一件件被好好完成的事情。</p>
+        <p>每當你認真完成一個任務，就等於搶到了一次出手機會。<br>球進了，怪獸就退後一步。</p>
+
+        <div class="my-8 border-t border-gray-700"></div>
+
+        <p class="text-blue-300 text-xl font-bold">教練說什麼</p>
+        <p class="text-gray-400 italic text-xl">「我不在乎你今天有沒有投進。<br>我在乎的是 — 你有沒有認真出手。」</p>
+        <p>任務完成，就是出手。<br>出手的品質，決定進球的機率。<br>但不管進不進，你出手了，你努力了，就有酬勞。</p>
+        <p class="text-yellow-300">這是聯盟的規矩。</p>
+
+        <div class="my-8 border-t border-gray-700"></div>
+
+        <p class="text-blue-300 text-xl font-bold">賽季開始了</p>
+        <p>記分板已經亮燈。<br>怪獸隊已經在暖身。<br>主播已經就位，用最浮誇的播報詞紀錄今天每一個瞬間。</p>
+        <p class="text-2xl font-bold text-white">現在，只差你們了。</p>
+        <p class="text-yellow-400 text-xl font-bold">Sheldon & Leonard，聯盟需要你們。<br>第一個任務，等著你們去搶。</p>
+      </div>
+    </div>
+    <div id="introFinalLine" class="fixed inset-0 flex items-center justify-center pointer-events-none"
+      style="z-index:2; opacity:0; font-size:2.5rem; font-weight:700; color:white; letter-spacing:0.05em;">
+    </div>
+    <button onclick="closeIntro()"
+      class="fixed bottom-8 bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 pixel-border text-lg z-50">
+      ▶ 開始登入
+    </button>
+  </div>
+
+  <div class="w-full max-w-2xl flex justify-between items-center mb-6">
+    <h1 class="text-2xl md:text-4xl text-yellow-400 leading-loose">魔幻籃球聯盟 <span
+        class="text-lg md:text-2xl text-gray-400">Noob Camp</span></h1>
+    <button id="logoutBtn" onclick="logout()"
+      class="hidden bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm pixel-border">LOGOUT</button>
+  </div>
+
+  <div id="loadingScreen" class="flex flex-col items-center justify-center mt-20">
+    <div class="text-green-400 text-2xl animate-blink">CONNECTING DATABASE...</div>
+  </div>
+
+  <div id="loginScreen" class="hidden w-full max-w-sm bg-gray-800 p-6 pixel-border flex flex-col gap-6 mt-10">
+    <h2 class="text-xl text-center text-blue-400 mb-2">LOGIN</h2>
+    <select id="loginUserSelect"
+      class="p-4 bg-gray-900 text-white outline-none border border-gray-600 text-center text-lg">
+      <!-- Dynamic -->
+    </select>
+    <input id="loginPin" type="password" placeholder="通關密碼 (可英數字)"
+      class="p-4 bg-gray-900 text-white outline-none border border-gray-600 text-center text-lg tracking-widest">
+    <button onclick="attemptLogin()"
+      class="bg-blue-600 hover:bg-blue-500 text-white p-4 mt-2 font-bold text-xl border-b-4 border-r-4 border-blue-800 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1">ENTER</button>
+    <div id="loginError" class="text-red-500 text-sm text-center hidden">INVALID PIN!</div>
+  </div>
+
+  <button onclick="showIntro()" id="replayIntroBtn"
+    class="hidden mt-4 text-gray-500 hover:text-yellow-400 text-sm underline">
+    重看開幕故事
+  </button>
+
+  <div id="arenaScreen" class="hidden w-full max-w-4xl flex flex-col gap-6">
+    <!-- Arena Animation Hidden -->
+    <div id="arenaAnimation" class="hidden"></div>
+
+    <!-- Marquee -->
+    <div class="bg-gray-900 border-2 border-yellow-500 overflow-hidden relative h-10 flex items-center w-full">
+      <div class="flex whitespace-nowrap animate-marquee text-yellow-400 font-bold tracking-widest gap-8">
+        <span id="arenaMarqueeText1">載入賽況中...</span>
+        <span id="arenaMarqueeText2">載入賽況中...</span>
+      </div>
+    </div>
+    <div class="flex gap-4">
+      <div class="flex-1 bg-gray-900 p-6 pixel-border text-center">
+        <div class="text-gray-400 mb-2">SL 隊</div>
+        <div id="arenaTeamScore" class="text-5xl text-blue-400 font-bold">0</div>
+      </div>
+      <div class="flex-1 bg-gray-900 p-6 pixel-border text-center">
+        <div class="text-gray-400 mb-2">MONSTERS</div>
+        <div id="arenaMonsterScore" class="text-5xl text-red-500 font-bold">0</div>
+      </div>
+    </div>
+
+    <!-- Daily News Report (ARENA ONLY) -->
+    <div id="arenaNewsPanel" class="bg-gray-800 p-6 pixel-border border-yellow-600">
+      <div class="flex justify-between items-center mb-4 border-b border-yellow-800 pb-2">
+        <h2 id="arenaNewsTitle" class="text-yellow-500 text-xl">📰 聯盟每日新聞稿 (DAILY NEWS)</h2>
+        <div class="flex gap-2">
+          <button onclick="fetchNewsHistory()"
+            class="bg-gray-700 hover:bg-gray-600 text-xs text-white px-2 py-1 pixel-border">歷史戰報</button>
+        </div>
+      </div>
+      <div id="dailyNewsContent" class="text-gray-300 leading-relaxed text-sm md:text-base whitespace-pre-wrap italic">
+        正在撰寫昨日戰報... 敬請期待。
+      </div>
+    </div>
+
+    <!-- News History Modal -->
+    <div id="newsHistoryModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4">
+      <div class="bg-gray-900 w-full max-w-2xl max-h-[80vh] overflow-y-auto pixel-border-blue p-6 flex flex-col gap-4">
+        <div class="flex justify-between items-center border-b border-blue-800 pb-2">
+          <h3 class="text-xl text-blue-400">📜 歷史戰報存檔</h3>
+          <button onclick="closeNewsHistory()" class="text-red-500 font-bold">CLOSE [X]</button>
+        </div>
+        <div id="newsHistoryList" class="flex flex-col gap-4">
+          <!-- Dynamic Content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainDashboard" class="hidden w-full max-w-2xl flex flex-col gap-6">
+
+    <div class="flex gap-1 mb-2 text-sm md:text-base">
+      <button onclick="switchTab('quests')" id="tab-quests"
+        class="flex-1 bg-blue-700 py-3 text-white pixel-border opacity-100">QUESTS</button>
+      <button onclick="switchTab('arena')" id="tab-arena"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">ARENA</button>
+      <button onclick="switchTab('stats')" id="tab-stats"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">STATUS</button>
+      <button onclick="switchTab('shop')" id="tab-shop"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50 text-yellow-500">SHOP</button>
+    </div>
+
+    <div id="view-arena" class="hidden flex flex-col gap-6">
+
+      <!-- Visual Arena Hidden per User Request -->
+      <div id="visualArena" class="hidden"></div>
+
+      <div class="bg-gray-900 p-8 pixel-border flex gap-4 text-center">
+        <div class="flex-1">
+          <div class="text-gray-400 mb-2 text-sm">SL 隊</div>
+          <div id="dashTeamScore" class="text-4xl text-blue-400 font-bold">0</div>
+        </div>
+        <div class="flex-1 border-l border-gray-700">
+          <div class="text-gray-400 mb-2 text-sm">MONSTER SCORE</div>
+          <div id="dashMonsterScore" class="text-4xl text-red-500 font-bold">0</div>
+        </div>
+      </div>
+
+      <!-- Dash Marquee -->
+      <div class="bg-gray-900 border border-yellow-800 overflow-hidden relative h-8 flex items-center w-full">
+        <div class="flex whitespace-nowrap animate-marquee text-yellow-400 text-sm tracking-wide gap-8">
+          <span id="dashMarqueeText1">載入賽況中...</span>
+          <span id="dashMarqueeText2">載入賽況中...</span>
+        </div>
+      </div>
+
+      <!-- Daily Match Log -->
+      <div class="bg-gray-800 p-4 pixel-border">
+        <h2 class="text-yellow-500 mb-3 text-lg flex justify-between">
+          <span>當日戰況 (MATCH LOG)</span>
+          <span class="text-[10px] text-gray-600">v1.0.3-LIVE</span>
+        </h2>
+        <div id="dashMatchLog" class="flex flex-col gap-2 text-sm h-64 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <div id="view-stats" class="hidden flex-col gap-6">
+      <!-- Dynamic Stats -->
+    </div>
+
+    <div id="view-quests" class="flex flex-col gap-6">
+
+      <div id="playerStatsCard"
+        class="hidden sprite-box-bg p-4 pixel-border-blue flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      </div>
+
+      <div id="playerTasksPanel" class="hidden bg-gray-800 p-4 pixel-border">
+        <h2 class="text-xl text-yellow-400 mb-4">未完成任務 (PENDING QUESTS)</h2>
+        <div id="playerTasksContainer" class="flex flex-col gap-4"></div>
+      </div>
+
+      <!-- GM: Technical Foul (Folded) -->
+      <details id="gmFoulPanel" class="hidden bg-gray-900 pixel-border-red mb-2 group">
+        <summary
+          class="p-4 cursor-pointer flex justify-between items-center text-xl text-red-500 bg-gray-800 hover:bg-gray-700 select-none">
+          <span>⚠️ 技術犯規</span>
+          <span class="text-sm text-gray-500 group-open:hidden whitespace-nowrap">▼ 展開</span><span
+            class="text-sm text-gray-500 hidden group-open:inline whitespace-nowrap">▲ 摺疊</span>
+        </summary>
+        <div class="p-4 border-t border-red-800 flex flex-col gap-3">
+          <div class="text-xs text-red-400 mb-1">違例球員/隊伍:</div>
+          <select id="foulTargetSelect" class="bg-gray-700 text-white p-3 pixel-border outline-none">
+            <option value="TEAM">全隊 (TEAM)</option>
+          </select>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="callFoul(1, 13)"
+              class="flex-1 bg-red-800 hover:bg-red-700 text-white py-3 pixel-border border-red-900 text-sm flex flex-col items-center">
+              <span>怪獸 +1</span>
+              <span class="text-xs text-red-300">-13G</span>
+            </button>
+            <button onclick="callFoul(2, 20)"
+              class="flex-1 bg-red-800 hover:bg-red-700 text-white py-3 pixel-border border-red-900 text-sm flex flex-col items-center">
+              <span>違例 +2</span>
+              <span class="text-xs text-red-300">-20G</span>
+            </button>
+            <button onclick="callFoul(3, 33)"
+              class="flex-1 bg-red-800 hover:bg-red-700 text-white py-3 pixel-border border-red-900 text-sm flex flex-col items-center">
+              <span>惡性 +3</span>
+              <span class="text-xs text-red-300">-33G</span>
+            </button>
+            <button onclick="callCustomFoul()"
+              class="flex-1 bg-red-900 hover:bg-red-800 text-white py-3 pixel-border border-red-950 font-bold text-sm flex flex-col items-center">
+              <span>自訂懲罰</span>
+              <span class="text-xs text-red-300">自填</span>
+            </button>
+          </div>
+          <!-- 自訂懲罰欄位（預設隱藏） -->
+          <div id="customFoulInputs" class="hidden flex gap-2 items-end">
+            <div class="flex flex-col gap-1 flex-1">
+              <span class="text-xs text-red-300">怪獸得分</span>
+              <input id="customFoulPoints" type="number" min="1" value="5"
+                class="bg-gray-700 text-white p-2 pixel-border outline-none w-full text-center">
+            </div>
+            <div class="flex flex-col gap-1 flex-1">
+              <span class="text-xs text-red-300">扣 G 金額</span>
+              <input id="customFoulGold" type="number" min="0" value="0"
+                class="bg-gray-700 text-white p-2 pixel-border outline-none w-full text-center">
+            </div>
+            <button onclick="confirmCustomFoul()"
+              class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 pixel-border border-red-900 text-sm">確定</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- GM: Daily Routine Repository (Fixed List) -->
+
+      <details id="gmRoutinePanel" class="hidden bg-gray-900 pixel-border-green mb-2 group">
+        <summary
+          class="p-4 cursor-pointer flex justify-between items-center text-xl text-green-400 bg-gray-800 hover:bg-gray-700 select-none">
+          <span>📅 每日任務</span>
+          <span class="text-sm text-gray-500 group-open:hidden whitespace-nowrap">▼ 展開</span><span
+            class="text-sm text-gray-500 hidden group-open:inline whitespace-nowrap">▲ 摺疊</span>
+        </summary>
+        <div class="p-4 border-t border-green-800 flex flex-col gap-4">
+          <div class="flex justify-between items-center bg-gray-800 p-3 pixel-border border-green-900 gap-4">
+            <div class="text-sm text-green-300">每天會依此列表自動指派任務，可以隨時修改或暫停。</div>
+            <button onclick="addNewRoutine()"
+              class="bg-green-700 hover:bg-green-600 px-4 py-2 text-sm text-white pixel-border shrink-0">+ 新增</button>
+          </div>
+          <div id="routineContainer" class="flex flex-col gap-4">
+            <!-- Direct Editable Cards rendered by renderRoutines() -->
+          </div>
+        </div>
+      </details>
+
+      <!-- GM: Needs Review (Folded) -->
+      <details id="gmReviewPanel" class="hidden bg-gray-900 pixel-border-red mb-2 group">
+        <summary
+          class="p-4 cursor-pointer flex justify-between items-center text-xl text-red-400 bg-gray-800 hover:bg-gray-700 select-none">
+          <span>等待教練審核</span>
+          <span class="text-sm text-gray-500 group-open:hidden whitespace-nowrap">▼ 展開</span>
+          <span class="text-sm text-gray-500 hidden group-open:inline whitespace-nowrap">▲ 摺疊</span>
+        </summary>
+        <div class="p-4 border-t border-red-800">
+          <div id="reviewContainer" class="flex flex-col gap-3"></div>
+        </div>
+      </details>
+
+      <!-- GM: Redemption Review (Folded) -->
+      <details id="gmRedemptionPanel" class="hidden bg-gray-900 pixel-border-yellow mb-2 group">
+        <summary
+          class="p-4 cursor-pointer flex justify-between items-center text-xl text-yellow-400 bg-gray-800 hover:bg-gray-700 select-none">
+          <span>兌換審核</span>
+          <span class="text-sm text-gray-500 group-open:hidden whitespace-nowrap">▼ 展開</span>
+          <span class="text-sm text-gray-500 hidden group-open:inline whitespace-nowrap">▲ 摺疊</span>
+        </summary>
+        <div class="p-4 border-t border-yellow-800">
+          <div id="redemptionContainer" class="flex flex-col gap-3"></div>
+        </div>
+      </details>
+
+      <!-- GM: Custom Quest (Folded) -->
+      <details id="gmCustomTaskPanel" class="hidden bg-gray-900 pixel-border-blue mb-2 group">
+        <summary
+          class="p-4 cursor-pointer flex justify-between items-center text-xl text-blue-400 bg-gray-800 hover:bg-gray-700 select-none">
+          <span>自訂臨時任務</span>
+          <span class="text-sm text-gray-500 group-open:hidden whitespace-nowrap">▼ 展開</span>
+          <span class="text-sm text-gray-500 hidden group-open:inline whitespace-nowrap">▲ 摺疊</span>
+        </summary>
+        <div class="p-4 flex flex-col gap-4 border-t border-blue-800 text-base">
+
+          <div class="bg-gray-700 p-3 flex flex-col gap-2 pixel-border">
+            <span class="text-gray-400 text-sm">負責球員 (Assignee):</span>
+            <div id="customAssigneeCheckboxes" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <span class="text-gray-400 text-sm">任務描述 (Description):</span>
+            <input id="taskName" type="text" placeholder="任務描述 (例如：洗碗、收玩具)..."
+              class="p-3 bg-gray-700 text-white outline-none w-full pixel-border">
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <span class="text-gray-400 text-sm">任務等級 (Rank):</span>
+            <select id="taskDifficulty" onchange="autoFillTaskRewards()"
+              class="w-full bg-gray-700 text-white p-3 outline-none pixel-border">
+              <option value="E">E (極簡) - 5 EXP / 5 G</option>
+              <option value="D">D (簡單) - 10 EXP / 10 G</option>
+              <option value="C" selected>C (普通) - 18 EXP / 18 G</option>
+              <option value="B">B (挑戰) - 28 EXP / 28 G</option>
+              <option value="A">A (困難) - 45 EXP / 45 G</option>
+              <option value="S">S (終極) - 70 EXP / 70 G</option>
+            </select>
+          </div>
+
+          <div class="bg-gray-700 p-3 flex flex-col gap-3 text-sm pixel-border">
+            <div class="text-gray-400 mb-1">日期時間期限 (Deadline):</div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dlType" value="none" checked class="w-4 h-4"> <span>無期限</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dlType" value="date" class="w-4 h-4"> <span>指定日期/時刻:</span>
+              <div class="flex gap-1 flex-1">
+                <input type="date" id="dlDate" class="bg-gray-800 p-2 text-white outline-none text-xs flex-1">
+                <input type="time" id="dlTime" class="bg-gray-800 p-2 text-white outline-none text-xs flex-1">
+              </div>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="dlType" value="duration" class="w-4 h-4"> <span>限時內完成:</span>
+              <input type="number" id="dlMins" placeholder="分鐘"
+                class="bg-gray-800 p-2 w-20 text-center text-white outline-none">
+            </label>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-1 flex flex-col gap-1">
+              <span class="text-gray-400 text-xs">經驗值 (EXP)</span>
+              <div class="flex items-center bg-gray-700 pixel-border"><span class="px-3 text-yellow-400">EXP</span><input
+                  id="expVal" type="number" value="15" class="w-full p-3 bg-transparent outline-none"></div>
+            </div>
+            <div class="flex-1 flex flex-col gap-1">
+              <span class="text-gray-400 text-xs">金幣 (G)</span>
+              <div class="flex items-center bg-gray-700 pixel-border"><span class="px-3 text-yellow-200">G</span><input
+                  id="goldVal" type="number" value="10" class="w-full p-3 bg-transparent outline-none"></div>
+            </div>
+          </div>
+
+          <button onclick="quickAdd()"
+            class="bg-blue-600 hover:bg-blue-500 text-white p-4 mt-2 font-bold text-lg border-b-4 border-r-4 border-blue-800 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1">立即指派任務</button>
+        </div>
+      </details>
+    </div>
+
+    <div id="view-shop" class="hidden flex-col gap-6">
+      <div class="bg-gray-800 p-6 pixel-border-blue min-h-[300px]">
+        <h2 class="text-2xl text-yellow-400 mb-6 flex justify-between items-center">
+          <span>獎勵兌換中心 (SHOP)</span>
+          <span id="shopGoldDisplay" class="text-xl text-yellow-200">0 G</span>
+        </h2>
+        <div id="shopItemsContainer" class="flex flex-col gap-4">
+          <!-- Render Shop Items Here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"
+    class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 pixel-border hidden transition-opacity z-50 text-lg uppercase">
+    MSG
+  </div>
+
+  <script>
+    // 🚀 從後端動態注入的正式網址 (GAS template inject)
+    const _GAS_BASE = "<?!= webappUrl ?>";
+    const API_URL = _GAS_BASE + "?api=true";
+    const _ASSET_BASE = "<?!= assetBase ?>";
+    console.log("System API Initialized at:", API_URL);
+
+    function escapeHTML(str) {
+      if (!str) return "";
+      return String(str).replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[tag]));
+    }
+
+    function parseTimeTag(val) {
+      if (!val) return '21:00';
+      const s = String(val);
+      if (/^\d{1,2}:\d{2}$/.test(s)) return s.padStart(5, '0');
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      }
+      return s;
+    }
+
+    function getPlayerSprite(id) {
+      if (id === 'P1') return {
+        idle: _ASSET_BASE + 'assets/characters/Sheldon/Sheldon_fullbody.png',
+        dribble: 'p1-dribble',
+        height: 'h-32'
+      };
+      if (id === 'P2') return {
+        idle: _ASSET_BASE + 'assets/characters/Leonard/Leonard_fullbody.png',
+        dribble: '',
+        dribbleClass: 'dribble-p2',
+        height: 'h-[102px]'
+      };
+      return { idle: '', dribble: '', height: 'h-16' };
+    }
+
+    function formatDeadline(isoStr) {
+      if (!isoStr) return null;
+      const d = new Date(isoStr);
+      if (isNaN(d)) return null;
+      const now = new Date();
+      const diffMs = d - now;
+      if (diffMs < 0) return '已逾期';
+
+      const totalSecs = Math.floor(diffMs / 1000);
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    let globalData = { users: [], tasks: [], shopItems: [], redemptions: [] };
+    let currentUser = null;
+    let editingTemplateIndex = -1;
+
+
+    async function init() {
+      // 🛡️ 防禦：localStorage JSON 損壞時不讓整個 init() crash
+      try {
+        const savedUser = localStorage.getItem('bbl_session');
+        if (savedUser) currentUser = JSON.parse(savedUser);
+      } catch (e) {
+        console.warn('bbl_session 解析失敗，清除舊 session:', e);
+        localStorage.removeItem('bbl_session');
+        currentUser = null;
+      }
+
+      await fetchData();
+
+      if (!currentUser) {
+        populateLoginDropdown();
+        switchView('login');
+      } else {
+        try {
+          routeUser();
+          startMusic();
+        } catch (e) {
+          console.error('routeUser 失敗，fallback 到 login:', e);
+          currentUser = null;
+          localStorage.removeItem('bbl_session');
+          populateLoginDropdown();
+          switchView('login');
+        }
+      }
+      setInterval(fetchData, 30000);
+    }
+
+    async function fetchData() {
+      try {
+        const urlWithCacheBuster = API_URL + "&t=" + new Date().getTime();
+        // 🛡️ 25 秒超時保護：避免 GAS 後端超時時前端永遠卡在 loading
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
+        let res;
+        try {
+          res = await fetch(urlWithCacheBuster, { signal: controller.signal });
+        } finally {
+          clearTimeout(timeout);
+        }
+        if (!res.ok) {
+          alert("連線失敗: Status " + res.status);
+          return;
+        }
+
+        const text = await res.text();
+        try {
+          globalData = JSON.parse(text);
+        } catch (e) {
+          console.error("JSON 解析失敗! 後端回傳內容為:", text);
+          alert("資料格式錯誤! 請點擊控制台查看詳細訊息。");
+          return;
+        }
+
+        if (globalData.error) {
+          alert("資料庫報錯: " + globalData.error);
+        }
+
+        if (currentUser && currentUser.User_ID !== 'ARENA') {
+          let updatedUser = (globalData.users || []).find(u => u.User_ID === currentUser.User_ID);
+          if (updatedUser) {
+            updatedUser._tk = currentUser._tk;
+            currentUser = updatedUser;
+            localStorage.setItem('bbl_session', JSON.stringify(currentUser));
+          }
+        }
+
+        if (currentUser) {
+          try { renderArena(); } catch (e) { console.error('renderArena 失敗:', e); }
+          if (currentUser.User_ID !== 'ARENA') {
+            const isPlayer = currentUser.Account_Type === 'Player';
+            try {
+              if (isPlayer) renderPlayerDashboard();
+              else renderGMDashboard();
+            } catch (e) { console.error('renderDashboard 失敗:', e); }
+          }
+        }
+      } catch (err) {
+        console.error("Fetch Data Failed:", err);
+        // 🛡️ 即使 fetch 失敗，也要離開 loading screen
+        if (document.getElementById('loadingScreen') &&
+            !document.getElementById('loadingScreen').classList.contains('hidden')) {
+          populateLoginDropdown();
+          switchView('login');
+        }
+      }
+    }
+
+    function switchView(viewName) {
+      ['loadingScreen', 'loginScreen', 'arenaScreen', 'mainDashboard', 'logoutBtn'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+
+      const replayBtn = document.getElementById('replayIntroBtn');
+      if (replayBtn) replayBtn.classList.toggle('hidden', viewName !== 'login');
+
+      if (viewName === 'login') {
+        document.getElementById('loginScreen').classList.remove('hidden');
+      } else if (viewName === 'arena') {
+        document.getElementById('arenaScreen').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+      } else {
+        document.getElementById('mainDashboard').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        const isPlayer = currentUser.Account_Type === 'Player';
+        document.getElementById('playerStatsCard').classList.toggle('hidden', !isPlayer);
+        document.getElementById('playerTasksPanel').classList.toggle('hidden', !isPlayer);
+
+        document.getElementById('gmReviewPanel').classList.toggle('hidden', isPlayer);
+        document.getElementById('gmRedemptionPanel').classList.toggle('hidden', isPlayer);
+        document.getElementById('gmRoutinePanel').classList.toggle('hidden', isPlayer);
+        document.getElementById('gmCustomTaskPanel').classList.toggle('hidden', isPlayer);
+        document.getElementById('gmFoulPanel').classList.toggle('hidden', isPlayer);
+
+        if (isPlayer) renderPlayerDashboard();
+        else renderGMDashboard();
+      }
+    }
+
+    function switchTab(tabName) {
+      ['quests', 'arena', 'stats', 'shop'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).classList.replace('bg-blue-700', 'bg-gray-700');
+        document.getElementById(`tab-${t}`).classList.replace('opacity-100', 'opacity-50');
+        document.getElementById(`tab-${t}`).classList.replace('text-white', 'text-gray-400');
+      });
+      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+      document.getElementById(`tab-${tabName}`).classList.replace('bg-gray-700', 'bg-blue-700');
+      document.getElementById(`tab-${tabName}`).classList.replace('opacity-50', 'opacity-100');
+      document.getElementById(`tab-${tabName}`).classList.replace('text-gray-400', 'text-white');
+
+      if (tabName === 'stats') renderStatsView();
+      if (tabName === 'shop') renderShop();
+      if (tabName === 'arena') renderArena();
+    }
+
+    function routeUser() {
+      if (currentUser.User_ID === 'ARENA') {
+        document.getElementById('arenaAnimation').classList.remove('hidden');
+        switchView('arena');
+        renderArena();
+      } else {
+        document.getElementById('arenaAnimation').classList.add('hidden');
+        switchView('dashboard');
+        renderArena();
+      }
+    }
+
+    const DIFFICULTY_REWARDS = {
+      'S': { exp: 70, gold: 70 },
+      'A': { exp: 45, gold: 45 },
+      'B': { exp: 28, gold: 28 },
+      'C': { exp: 18, gold: 18 },
+      'D': { exp: 10, gold: 10 },
+      'E': { exp: 5, gold: 5 }
+    };
+
+    function autoFillTaskRewards() {
+      const diff = document.getElementById('taskDifficulty').value;
+      if (DIFFICULTY_REWARDS[diff]) {
+        document.getElementById('expVal').value = DIFFICULTY_REWARDS[diff].exp;
+        document.getElementById('goldVal').value = DIFFICULTY_REWARDS[diff].gold;
+      }
+    }
+
+    function autoFillRoutineRewards(tplId) {
+      const diff = document.getElementById(`rt-diff-${tplId}`).value;
+      if (DIFFICULTY_REWARDS[diff]) {
+        document.getElementById(`rt-exp-${tplId}`).value = DIFFICULTY_REWARDS[diff].exp;
+        document.getElementById(`rt-gold-${tplId}`).value = DIFFICULTY_REWARDS[diff].gold;
+      }
+    }
+
+    const SCORE_LOW = [
+      "🏀 歪打正著！{actor} 隨手一拋，球竟然打板滾進去了！(+{points}分)",
+      "🏀 這顆球長眼睛啦！{actor} 投出的地滾球莫名其妙彈進框中！(+{points}分)",
+      "🏀 嚇出一身冷汗！{actor} 這球在框上轉了五圈，總算乖乖掉裡面了！(+{points}分)",
+      "🏀 教練捏了一把冷汗... 但 {actor} 驚險命中這顆亂流球！(+{points}分)",
+      "🏀 運氣也是實力的一部份！{actor} 差點滑倒卻誤打誤撞得了分！(+{points}分)",
+      "🏀 神奇的物理學！{actor} 投出了一顆違反引力的幸運擦板球！(+{points}分)",
+      "🏀 完全失去平衡的出手！沒想到 {actor} 用膝蓋頂了一下居然進了！(+{points}分)"
+    ];
+
+    const SCORE_MID = [
+      "🏀 穩紮穩打！{actor} 見縫插針，一個俐落的上籃順利拿分！(+{points}分)",
+      "🏀 {actor} 的完美節奏！一個流暢的中距離跳投應聲入網！(+{points}分)",
+      "🏀 沒有懸念！{actor} 展現出扎實的基本功，穩穩進帳！(+{points}分)",
+      "🏀 好球！{actor} 在防守者面前直接拔起，漂亮命中！(+{points}分)",
+      "🏀 {actor} 一個轉身過人，手腕輕輕一抖，輕鬆擦板得分！(+{points}分)",
+      "🏀 表現可圈可點！{actor} 精準導航命中目標！(+{points}分)",
+      "🏀 {actor} 用標準的教科書姿勢得分，看得出背後的努力！(+{points}分)"
+    ];
+
+    const SCORE_HIGH = [
+      "🏀 終極美技！{actor} 彷彿滯空了一整秒，拉桿神級命中！(+{points}分)",
+      "🏀 完美無瑕！{actor} 招牌的空心三分球，連籃網都沒晃動！(+{points}分)",
+      "🏀 這是藝術！{actor} 大秀極致迷蹤步，全場都看呆了，輕鬆得分！(+{points}分)",
+      "🏀 燃燒吧鬥魂！{actor} 火力全開，這記超燃扣籃震撼全場！(+{points}分)",
+      "🏀 根本是 MVP 等級的表現！{actor} 華麗的出手宣告了滿分好球！(+{points}分)",
+      "🏀 神仙降臨！{actor} 這球投出了彩虹般的優美弧線，一箭穿心！(+{points}分)"
+    ];
+
+    const MISS_LOW = [
+      "💥 我的天... {actor} 投出了一顆大麵包，球直接飛上了觀眾席。",
+      "💥 差太多啦！{actor} 整個手滑，球直接砸在計分板上。",
+      "💥 {actor} 想耍帥結果踩到鞋帶，投出了一記讓全場安靜的離譜拋投...",
+      "💥 這球絕對是被干擾了，{actor} 的球竟然連籃板都沒擦到！",
+      "💥 放槍啦！{actor} 原本想灌籃，卻把球直接塞給了空氣。",
+      "💥 {actor} 今天的投籃準星可能有裝反，這球砸了個震天響的鐵！",
+      "💥 球滑溜溜的抓不住！{actor} 竟然丟了一顆地滾球！？"
+    ];
+
+    const MISS_MID = [
+      "💥 框噹！{actor} 力道大了一點，直接打在籃框後緣彈出了！",
+      "💥 可惜！{actor} 的出手相當流暢，可惜方向偏了半吋。",
+      "💥 哎呀，這球在框上跳了一下又跑了出來，{actor} 氣得直跺腳。",
+      "💥 {actor} 這次的出手稍微偏離了剛好的軌道。",
+      "💥 運氣不佳！{actor} 投出了好球，卻成了籃框的拒絕往來戶。",
+      "💥 出手感覺還不錯！結果 {actor} 的球卻成了打鐵交響樂的一環。",
+      "💥 就差一點點！{actor} 投出的球被一陣微風給吹偏了。"
+    ];
+
+    const MISS_HIGH = [
+      "💥 太邪門了！{actor} 這記完美的拋投竟然在籃框裡轉了三圈爬了出來！",
+      "💥 簡直沒天理！{actor} 這球已經一半掉進網子裡了又被神奇力量吐出來...",
+      "💥 連防守員都嚇了一身冷汗，{actor} 這顆滿分好球竟然就差臨門一腳！",
+      "💥 完美的手感卻遇到最殘酷的結果，{actor} 上演了史詩級的遺憾錯失！",
+      "💥 球神不賞臉！{actor} 無懈可擊的出手，卻被籃框硬生生地拒絕！",
+      "💥 這是什麼巫術！{actor} 全場驚呼的必進好球，竟然滑了出來！"
+    ];
+
+    const FOUL_TEMPLATES = [
+      "🚨 逼逼！裁判抓到 {target} 偷拉對手褲子，對手免費獲得 {points} 分！",
+      "🚨 {target} 太激動啦！居然對著空氣噴垃圾話被吹技術犯規！失血 {points} 分！",
+      "🚨 天啊！{target} 在場上公然睡覺，這絕對是犯規的！對手 +{points} 分！",
+      "🚨 {target} 不小心把球砸進自家籃框！這烏龍球讓對手白賺 {points} 分！",
+      "🚨 裁判表示：{target} 剛剛的防守動作太像在跳廣場舞了，違例！失 {points} 分！",
+      "🚨 {target} 居然忘記自己在哪隊，把球傳給對手直接得分！失血 {points} 分！",
+      "🚨 逼逼！{target} 竟然在球場上偷吃零食！技術犯規！對手 +{points} 分！",
+      "🚨 這太誇張了！{target} 跑到裁判區喝水，嚴重違規！對手爽拿 {points} 分！",
+      "🚨 {target} 為了撿地上的十塊錢放棄防守，對手輕鬆上籃得 {points} 分！",
+      "🚨 嗶！犯規！{target} 試圖用鬼臉嚇唬射手，結果嚇到裁判！失 {points} 分！",
+      "🚨 {target} 綁鞋帶綁太久，被吹了個延誤比賽！對手笑納 {points} 分！",
+      "🚨 太扯了！{target} 竟然跑出場外去追蝴蝶？技術犯規！對手 +{points} 分！",
+      "🚨 {target} 的防守像是空氣一樣，對手毫不費力就拿走了 {points} 分！",
+      "🚨 嗶嗶！{target} 居然跟對手擊掌慶祝失誤？無情犯規！失 {points} 分！",
+      "🚨 {target} 在場上發呆想著晚餐吃什麼，導致防守漏洞百出！對手 +{points} 分！",
+      "🚨 裁判明察秋毫！{target} 偷偷用腳踢球，對手獲得 {points} 分補償！",
+      "🚨 {target} 竟然戴著眼罩上場防守？這是要怎麼打！對手得 {points} 分！",
+      "🚨 防守潰堤！{target} 原地打滑轉了三圈，對手見狀直接拿走 {points} 分！",
+      "🚨 嗶嗶！{target} 把球藏在衣服裡被發現了！極度搞笑的犯規！失 {points} 分！",
+      "🚨 {target} 居然試圖跟籃框講道理！可惜違反運動精神，失血 {points} 分！"
+    ];
+
+    const FLAVOR_TEMPLATES = [
+      "🏟️ 球場清潔中：灰塵怪客正在清理籃架上的史萊姆黏液，順便打個噴嚏。",
+      "🏟️ 賽前熱身：Sheldon 剛才練習了一記超遠三分，球飛出了大氣層。",
+      "🏟️ 史萊姆球員試圖扣籃，但不小心黏在籃框上掛了五分鐘才掉下來。",
+      "🏟️ 場邊花絮：林投姐正在幫球員整理球衣，順便碎碎念誰的小屁屁沒洗乾淨。",
+      "🏟️ 虎姑婆在場邊兜售「特製宵夜」，但現在還早，怪物們表示還不餓。",
+      "🏟️ 裁判正在檢查計分板，順便剔牙... 剛才好像偷喝了誰的運動飲料？",
+      "🏟️ 比賽暫停：一群皮克敏誤入球場，正試圖把籃球搬回森林裡。",
+      "🏟️ 氣象報告：球場上方出現局部雷雨，原來是巴哈姆特在打哈欠。",
+      "🏟️ 技術室報告：Leonard 的球鞋剛才發出了紅光，難道是傳說中的噴射推進器？",
+      "🏟️ 魔神仔在場邊玩捉迷藏，但因為全身綠油油的，直接被當作假草皮。",
+      "🏟️ 庫巴試圖練習運球，但每拍一下地心引力似乎就增加了一點點。",
+      "🏟️ 仙人掌球員正在練習「針球」，希望等一下不要射到裁判。",
+      "🏟️ 驚喜！史萊姆球員不小心把自己投進了籃框，這算兩分嗎？",
+      "🏟️ 廣播：請場邊的小朋友不要餵食食人花，這是一次嚴厲的警告！"
+    ];
+
+    function getFlavorTemplates() {
+      try {
+        const entry = (globalData.globalState || []).find(s => s.Key === 'Daily_Flavor_Texts');
+        if (entry?.Value) {
+          const parsed = JSON.parse(entry.Value);
+          if (Array.isArray(parsed) && parsed.length >= 5) return parsed;
+        }
+      } catch (e) { }
+      return FLAVOR_TEMPLATES;
+    }
+
+    function getStringHash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash);
+    }
+
+    function translateLog(log) {
+      // log = [Log_ID, Timestamp, Season_ID, Actor_ID, Action_Type, Detail_JSON]
+      let actor = globalData.users.find(u => u.User_ID === log[3])?.Name || log[3];
+      let detail = {};
+      try { detail = JSON.parse(log[5]); } catch (e) { }
+
+      let hashIndex = getStringHash(log[0]);
+
+      if (log[4] === 'TASK_APPROVE' || log[4] === 'AWESOME_MOVE') {
+        if (detail.broadcast) return detail.broadcast;
+        let theTask = globalData.tasks.find(t => t.Task_ID === detail.taskId);
+        let subject = actor;
+        if (theTask) {
+          let assignees = String(theTask.Assignee_ID).split(',');
+          subject = assignees.map(aid => globalData.users.find(u => u.User_ID === aid)?.Name || aid).join(', ');
+        }
+        let quality = parseInt(detail.quality) || 80;
+        let tplList = [];
+
+        if (detail.isHit) {
+          if (quality < 80) tplList = SCORE_LOW;
+          else if (quality < 95) tplList = SCORE_MID;
+          else tplList = SCORE_HIGH;
+        } else {
+          if (quality < 80) tplList = MISS_LOW;
+          else if (quality < 95) tplList = MISS_MID;
+          else tplList = MISS_HIGH;
+        }
+
+        let tpl = tplList[hashIndex % tplList.length];
+        return tpl.replace('{actor}', subject).replace('{points}', detail.points || 0);
+      }
+      if (log[4] === 'FOUL_CALLED' || log[4] === 'MONSTER_AND1' || log[4] === 'MONSTER_RUN') {
+        const goldInfo = (detail.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
+        const goldSuffix = goldInfo ? ` | 💸 ${goldInfo}` : '';
+        if (detail.broadcast) return detail.broadcast + goldSuffix;
+        let target = detail.targetId === 'TEAM' ? '全隊' : (globalData.users.find(u => u.User_ID === detail.targetId)?.Name || detail.targetId);
+        let tpl = FOUL_TEMPLATES[hashIndex % FOUL_TEMPLATES.length];
+        return tpl.replace('{target}', target).replace('{points}', detail.addedPoints) + goldSuffix;
+      }
+      if (log[4] === 'TASK_EXPIRED') {
+        return detail.narrative || `⚠️ 任務「${detail.name}」已過期，怪獸隊得分！`;
+      }
+      if (log[4] === 'GM_GIFT') {
+        const target = detail.targetId === 'TEAM' ? '全隊' : (globalData.users.find(u => u.User_ID === detail.targetId)?.Name || detail.targetId);
+        return `🎁 教練大手筆！直接將【${escapeHTML(detail.itemName)}】送給了 ${escapeHTML(target)}！`;
+      }
+      if (log[4] === 'REDEMPTION_APPROVED') {
+        const target = globalData.users.find(u => u.User_ID === detail.playerId)?.Name || detail.playerId;
+        return `🛒 教練核准了 ${escapeHTML(target)} 兌換【${escapeHTML(detail.itemName)}】！`;
+      }
+      if (log[4] === 'REDEMPTION_REJECTED') {
+        const target = globalData.users.find(u => u.User_ID === detail.playerId)?.Name || detail.playerId;
+        return `↩ 教練退回了 ${escapeHTML(target)} 的【${escapeHTML(detail.itemName)}】申請，${detail.refund} G 已退還。`;
+      }
+      return null;
+    }
+
+    function renderArena() {
+      let ts = globalData.globalState.find(s => s.Key === 'Team_Score')?.Value || 0;
+      let ms = globalData.globalState.find(s => s.Key === 'Monster_Score')?.Value || 0;
+      document.getElementById('arenaTeamScore').innerText = ts;
+      document.getElementById('arenaMonsterScore').innerText = ms;
+      document.getElementById('dashTeamScore').innerText = ts;
+      document.getElementById('dashMonsterScore').innerText = ms;
+
+      // Render Logs
+      const matchLogContainer = document.getElementById('dashMatchLog');
+
+      // Get Real Logs
+      const nowObj = new Date();
+      const nowMins = nowObj.getHours() * 60 + nowObj.getMinutes();
+
+      let realLogs = (globalData.logs || []).map(l => [l.Log_ID, l.Timestamp, l.Season_ID, l.Actor_ID, l.Action_Type, l.Detail_JSON])
+        .map(l => {
+          const d = new Date(l[1]);
+          return {
+            sortKey: d.getHours() * 60 + d.getMinutes(),
+            time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+            msg: translateLog(l),
+            isFlavor: false
+          };
+        })
+        .filter(l => l.msg !== null);
+
+      const dateSeed = nowObj.getFullYear() * 10000 + (nowObj.getMonth() + 1) * 100 + nowObj.getDate();
+      let displayLogs = [...realLogs];
+
+      // Add Flavor Logs back in (Only if they already happened)
+      const windows = [
+        { startH: 6, startM: 45, endH: 7, endM: 45 }, // 起床到上學
+        { startH: 16, startM: 15, endH: 21, endM: 45 } // 放學後到睡前
+      ];
+
+      for (let i = 0; i < 20 && displayLogs.length < 15; i++) {
+        const flavorList = getFlavorTemplates();
+        let flavorIndex = (dateSeed + i * 13) % flavorList.length;
+        let win = windows[i % windows.length];
+        let totalMins = (win.endH * 60 + win.endM) - (win.startH * 60 + win.startM);
+        let randOffset = (dateSeed + i * 31) % totalMins;
+        let targetTotal = (win.startH * 60 + win.startM) + randOffset;
+
+        // 重要：不顯示未來發生的事
+        if (targetTotal <= nowMins) {
+          let h = Math.floor(targetTotal / 60);
+          let m = targetTotal % 60;
+          displayLogs.push({
+            sortKey: targetTotal,
+            time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+            msg: flavorList[flavorIndex],
+            isFlavor: true
+          });
+        }
+      }
+
+      // 按照分鐘數倒序排列 (最新在前)
+      displayLogs.sort((a, b) => b.sortKey - a.sortKey);
+
+      let html = displayLogs.map(l => `
+            <div class="border-b border-gray-700 pb-2 ${l.isFlavor ? 'opacity-60 italic text-blue-500' : ''}">
+                <span class="text-gray-500 text-xs">[${l.time}]</span> 
+                <span class="${l.isFlavor ? 'text-blue-300' : 'text-gray-200'}">${escapeHTML(l.msg)}</span>
+            </div>
+        `).join('');
+
+      matchLogContainer.innerHTML = html || '賽館準備中...';
+
+      // Update Daily News (ARENA ONLY)
+      const newsContent = globalData.globalState.find(s => s.Key === 'Daily_News')?.Value || "今日尚無重大新聞報導。";
+      const newsEl = document.getElementById('dailyNewsContent');
+      if (newsEl) newsEl.innerText = newsContent;
+      // Weekly report indicator
+      const newsList = globalData.news || [];
+      const latestNews = newsList.length > 0 ? newsList[newsList.length - 1] : null;
+      const newsTitle = document.getElementById('arenaNewsTitle');
+      if (newsTitle) {
+        if (latestNews && latestNews.Type === 'Weekly') {
+          newsTitle.innerHTML = '🏆 聯盟週報 (WEEKLY RECAP)';
+          newsTitle.className = 'text-yellow-300 text-xl font-bold';
+        } else {
+          newsTitle.innerHTML = '📰 聯盟每日新聞稿 (DAILY NEWS)';
+          newsTitle.className = 'text-yellow-500 text-xl';
+        }
+      }
+
+      let marqueeStr = displayLogs.slice(0, 8).map(l => `[${l.time}] ${l.msg}`).join(' 🏀 ') || '歡迎來到魔幻籃球聯盟！現在館內一片祥和...';
+      let spacing = '\u00A0'.repeat(100);
+      let finalStr = marqueeStr + spacing;
+
+      document.getElementById('arenaMarqueeText1').innerText = finalStr;
+      document.getElementById('arenaMarqueeText2').innerText = finalStr;
+      document.getElementById('dashMarqueeText1').innerText = finalStr;
+      document.getElementById('dashMarqueeText2').innerText = finalStr;
+    }
+
+
+    function populateLoginDropdown() {
+      const select = document.getElementById('loginUserSelect');
+      const lastUser = localStorage.getItem('bbl_last_user');
+
+      // 根據後端回傳的 Users 動態產生選項
+      let options = (globalData.users || []).map(u => {
+        const role = (u.Account_Type === 'GM') ? '裁判' : '球員';
+        return `<option value="${escapeHTML(u.User_ID)}" ${u.User_ID === lastUser ? 'selected' : ''}>${escapeHTML(u.Name)} (${role})</option>`;
+      });
+
+      // 只有 ARENA 是前端邊緣案例，另外加上去
+      options.push(`<option value="ARENA" ${lastUser === 'ARENA' ? 'selected' : ''}>ARENA (觀戰模式)</option>`);
+      select.innerHTML = options.join('');
+    }
+
+    async function attemptLogin() {
+      const userId = document.getElementById('loginUserSelect').value;
+      const pin = document.getElementById('loginPin').value;
+
+      if (userId === 'ARENA') {
+        currentUser = { User_ID: 'ARENA', Account_Type: 'Arena' };
+        localStorage.setItem('bbl_session', JSON.stringify(currentUser));
+        routeUser();
+        startMusic();
+        return;
+      }
+
+      document.getElementById('loginError').classList.remove('hidden', 'text-red-500');
+      document.getElementById('loginError').classList.add('text-blue-400');
+      document.getElementById('loginError').innerText = "連線認證中...";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'login', userId: userId, pin: pin })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          currentUser = data.user;
+          currentUser._tk = pin;
+          localStorage.setItem('bbl_session', JSON.stringify(currentUser));
+          document.getElementById('loginError').classList.add('hidden');
+          document.getElementById('loginPin').value = '';
+          routeUser();
+          startMusic();
+        } else {
+          document.getElementById('loginError').classList.remove('text-blue-400', 'hidden');
+          document.getElementById('loginError').classList.add('text-red-500');
+          document.getElementById('loginError').innerText = "密碼錯誤或權限不足！";
+        }
+      } catch (err) {
+        document.getElementById('loginError').classList.remove('hidden', 'text-blue-400');
+        document.getElementById('loginError').classList.add('text-red-500');
+        document.getElementById('loginError').innerText = "網路連線異常";
+      }
+    }
+
+    function logout() {
+      stopMusic();
+      if (currentUser && currentUser.User_ID) {
+        localStorage.setItem('bbl_last_user', currentUser.User_ID);
+      }
+      currentUser = null;
+      localStorage.removeItem('bbl_session');
+      switchView('login');
+      populateLoginDropdown();
+    }
+
+    function generateCheckboxGroup(groupId, optionsArray) {
+      return optionsArray.map(opt => `
+                <label class="checkbox-container cursor-pointer inline-flex items-center">
+                    <input type="checkbox" name="${escapeHTML(groupId)}" value="${escapeHTML(opt.val)}" class="hidden">
+                    <div class="px-3 py-1 bg-gray-800 border border-gray-600 text-gray-400 text-sm select-none transition-colors">${escapeHTML(opt.label)}</div>
+                </label>
+            `).join('');
+    }
+
+    function getSelectedCheckboxes(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(e => e.value).join(',');
+    }
+
+    function expDisplay(level, currentExp) {
+      const EXP_LVL = {
+        2:145,  3:310,  4:505,  5:725,  6:960,  7:1215, 8:1490, 9:1790, 10:2130,
+        11:2355,12:2590,13:2840,14:3100,15:3365,16:3635,17:3920,
+        18:4215,19:4525,20:4840,21:5160,22:5495,23:5835,24:6185,
+        25:6550,26:6925,27:7310,28:7705,29:8110,30:8525
+      };
+      const prev = EXP_LVL[level] || 0;
+      const next = EXP_LVL[level + 1];
+      const inLevel = currentExp - prev;
+      const needed  = next ? next - prev : 0;
+      const suffix = next ? `<span class="text-xs text-gray-500">/${needed}</span>` : `<span class="text-xs text-gray-500">/MAX</span>`;
+      return `${inLevel}${suffix}`;
+    }
+
+    function renderPlayerDashboard() {
+      const sp = getPlayerSprite(currentUser.User_ID);
+      let spriteClass = sp.height;
+      let spritePath = sp.idle;
+
+      document.getElementById('playerStatsCard').innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="flex flex-col items-center gap-1 shrink-0">
+                        <img src="${spritePath}" class="player-sprite ${spriteClass}" alt="Player">
+                        <div class="text-yellow-300 font-bold text-sm leading-none">${escapeHTML(currentUser.Name)}</div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm flex-1">
+                    <div class="bg-gray-700 p-2 pixel-border flex flex-col justify-between h-[60px]">
+                        <div class="text-gray-400 text-sm text-left leading-none">LV</div>
+                        <div class="text-lg text-white text-right font-bold leading-none">${currentUser.Level}</div>
+                    </div>
+                    <div class="bg-gray-700 p-2 pixel-border flex flex-col justify-between h-[60px]">
+                        <div class="text-gray-400 text-sm text-left leading-none">EXP</div>
+                        <div class="text-base text-green-400 text-right font-bold leading-none whitespace-nowrap">${expDisplay(currentUser.Level, currentUser.EXP)}</div>
+                    </div>
+                    <div class="bg-gray-700 p-2 pixel-border flex flex-col justify-between h-[60px]">
+                        <div class="text-gray-400 text-sm text-left leading-none">G</div>
+                        <div class="text-lg text-yellow-400 text-right font-bold leading-none">${currentUser.Gold}</div>
+                    </div>
+                    <div class="bg-gray-700 p-2 pixel-border flex flex-col justify-between h-[60px]">
+                        <div class="text-gray-400 text-sm text-left leading-none">SP</div>
+                        <div class="text-base text-blue-400 text-right font-bold leading-none whitespace-nowrap">${currentUser.Current_SP}<span class="text-xs text-gray-500">/${currentUser.Max_SP}</span></div>
+                    </div>
+                    </div>
+                </div>
+            `;
+
+      const container = document.getElementById('playerTasksContainer');
+      const myTasks = globalData.tasks.filter(t => {
+        const assignees = String(t.Assignee_ID).split(',');
+        const isAssigned = assignees.includes(currentUser.User_ID) || assignees.includes('TEAM');
+        return isAssigned && (t.Status === "Pending" || t.Status === "Reviewing" || t.Status === "Failed" || t.Status === "Completed");
+      });
+
+      if (myTasks.length === 0) {
+        container.innerHTML = `<div class="text-gray-400 p-4 text-center">目前沒有指派給您的任務。</div>`;
+        return;
+      }
+
+      container.innerHTML = myTasks.map(t => {
+        const isReviewing = t.Status === "Reviewing";
+        const isFailed = t.Status === "Failed";
+        const isCompleted = t.Status === "Completed";
+        const isTeamTask = String(t.Assignee_ID).includes('TEAM');
+        const submittedBy = String(t.Submitted_By || '').split(',').filter(x => x);
+        const hasSubmitted = isTeamTask && submittedBy.includes(currentUser.User_ID);
+
+        let diffColor = "bg-gray-700 border-gray-500";
+        if (t.Difficulty === 'D') diffColor = "bg-green-900 border-green-600";
+        if (t.Difficulty === 'C') diffColor = "bg-blue-900 border-blue-600";
+        if (t.Difficulty === 'B') diffColor = "bg-red-900 border-red-600";
+        if (t.Difficulty === 'A') diffColor = "bg-purple-900 border-purple-600";
+        if (t.Difficulty === 'S') diffColor = "bg-yellow-800 border-yellow-500";
+
+        let timeTag = "";
+        const dlLabel = t.Deadline ? formatDeadline(t.Deadline) : null;
+        if (dlLabel) {
+          const dlBg = isFailed ? 'bg-red-950 text-red-500' : 'bg-red-900 text-red-200';
+          timeTag = `<span class="${dlBg} px-2 py-1 pixel-border border-red-700 text-sm md:text-base font-bold whitespace-nowrap"><span class="live-countdown" data-deadline="${t.Deadline}">⏳ ${escapeHTML(dlLabel)}</span></span>`;
+        }
+
+        const displayName = escapeHTML(t.Task_Name);
+        const fadeClass = (isFailed || isReviewing || isCompleted) ? 'opacity-70 border-dashed' : '';
+
+        let actionHtml;
+        const isExpired = t.Deadline && new Date(t.Deadline) < new Date();
+
+        if (isCompleted) {
+          actionHtml = `<div class="bg-green-900 text-green-400 text-sm px-4 py-2 border border-green-700 font-bold uppercase">✅ 已完成・等待明日重置</div>`;
+        } else if (isFailed || (t.Status === 'Pending' && isExpired)) {
+          actionHtml = `<div class="bg-gray-800 text-red-500 text-sm px-4 py-2 border border-red-900 font-bold uppercase">挑戰失敗</div>`;
+        } else if (isReviewing) {
+          actionHtml = `<div class="flex gap-2 items-center">
+            <div class="bg-gray-700 text-yellow-400 text-sm px-4 py-2 pixel-border font-bold">審核中</div>
+            <button onclick="undoTask('${t.Task_ID}')" class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 text-sm pixel-border border-red-900 font-bold active:translate-y-1 active:translate-x-1">取消</button>
+          </div>`;
+        } else if (hasSubmitted) {
+          actionHtml = `<div class="flex gap-2 items-center">
+            <div class="bg-gray-700 text-yellow-400 text-sm px-4 py-2 pixel-border font-bold">等待隊友</div>
+            <button onclick="undoTask('${t.Task_ID}')" class="bg-red-700 hover:bg-red-600 text-white px-3 py-2 text-xs pixel-border border-red-900 font-bold active:translate-y-1 active:translate-x-1">撤回</button>
+          </div>`;
+        } else {
+          actionHtml = `<button onclick="submitTask('${t.Task_ID}')" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 text-lg pixel-border border-blue-800 font-bold active:translate-y-1 active:translate-x-1">完成並提交</button>`;
+        }
+
+        return `
+          <div class="flex flex-col p-4 pixel-border gap-3 ${diffColor} ${fadeClass}">
+            <div class="flex justify-between items-start gap-4">
+              <div class="flex flex-col">
+                <span class="text-sm md:text-base text-gray-300 uppercase font-bold tracking-tighter mb-1">RANK: ${t.Difficulty || 'C'}</span>
+                <div class="text-lg md:text-xl text-white font-bold leading-tight">
+                  ${isTeamTask ? '<span class="text-sm bg-purple-700 px-2 py-1 mr-2 pixel-border border-purple-500">TEAM</span>' : ''}
+                  ${displayName}
+                </div>
+              </div>
+              ${timeTag ? `<div>${timeTag}</div>` : ''}
+            </div>
+            <div class="flex justify-between items-end">
+              <div class="flex gap-3 text-sm">
+                <div class="flex flex-col"><span class="text-sm text-gray-300 font-bold mb-1">REWARD</span><div class="flex gap-2 md:gap-3 text-base md:text-lg"><span class="text-yellow-400 font-bold">${t.Base_EXP} EXP</span> <span class="text-yellow-200 font-bold">${t.Base_Gold} G</span></div></div>
+              </div>
+              ${actionHtml}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderGMDashboard() {
+      const players = globalData.users.filter(u => u.Account_Type === 'Player');
+      const assignOptions = players.map(u => ({ val: u.User_ID, label: u.Name }));
+      assignOptions.push({ val: 'TEAM', label: 'TEAM CO-OP' });
+      document.getElementById('customAssigneeCheckboxes').innerHTML = generateCheckboxGroup('customAssign', assignOptions);
+
+      // 填入技術犯規選單：全隊 + 各個玩家
+      const foulSelect = document.getElementById('foulTargetSelect');
+      foulSelect.innerHTML = '<option value="TEAM">全隊 (TEAM)</option>'
+        + players.map(u => `<option value="${u.User_ID}">${u.Name}</option>`).join('');
+
+      renderReviewPanel();
+      renderRedemptionPanel();
+      renderRoutines();
+    }
+
+    function renderReviewPanel() {
+      const container = document.getElementById('reviewContainer');
+      const players = globalData.users || [];
+      const reviewing = (globalData.tasks || []).filter(t => t.Status === 'Reviewing');
+
+      if (reviewing.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 p-4 text-center">目前沒有待審核任務。</div>';
+        return;
+      }
+
+      container.innerHTML = reviewing.map(t => {
+        const assigneeStr = String(t.Assignee_ID || '');
+        const assigneeNames = assigneeStr === 'TEAM'
+          ? '全隊'
+          : assigneeStr.split(',').map(id => players.find(u => u.User_ID === id)?.Name || id).join(', ');
+        const submittedBy = String(t.Submitted_By || '').split(',').filter(x => x)
+          .map(id => players.find(u => u.User_ID === id)?.Name || id).join(', ');
+        const dlLabel = t.Deadline ? formatDeadline(t.Deadline) : '無期限';
+
+        return `
+          <div class="bg-gray-800 p-4 pixel-border border-red-900 flex flex-col gap-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-yellow-400 font-bold">[${escapeHTML(t.Difficulty)}]</span>
+                <span class="text-white text-lg font-bold ml-2">${escapeHTML(t.Task_Name)}</span>
+              </div>
+              <div class="text-xs text-gray-400 text-right">
+                <div>執行：${escapeHTML(assigneeNames)}</div>
+                <div>提交：${escapeHTML(submittedBy) || '—'}</div>
+                <div class="live-countdown" data-deadline="${t.Deadline || ''}">${escapeHTML(dlLabel)}</div>
+              </div>
+            </div>
+            <div class="text-xs text-gray-400">${t.Base_EXP} EXP | ${t.Base_Gold} G</div>
+            <div class="flex flex-col gap-2">
+              <div class="text-xs text-gray-400">出手品質 → 命中率：</div>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="approveTask('${t.Task_ID}', 60)"  class="flex-1 bg-gray-700 hover:bg-blue-700 px-3 py-2 text-sm pixel-border font-bold">D 60%</button>
+                <button onclick="approveTask('${t.Task_ID}', 80)"  class="flex-1 bg-gray-700 hover:bg-blue-700 px-3 py-2 text-sm pixel-border font-bold">C 80%</button>
+                <button onclick="approveTask('${t.Task_ID}', 90)"  class="flex-1 bg-blue-900  hover:bg-blue-700 px-3 py-2 text-sm pixel-border font-bold">B 90%</button>
+                <button onclick="approveTask('${t.Task_ID}', 95)"  class="flex-1 bg-yellow-900 hover:bg-yellow-700 px-3 py-2 text-sm pixel-border font-bold text-yellow-300">A 95%</button>
+                <button onclick="approveTask('${t.Task_ID}', 99)"  class="flex-1 bg-purple-900 hover:bg-purple-700 px-3 py-2 text-sm pixel-border font-bold text-purple-300">S 99%</button>
+              </div>
+              <button onclick="rejectTask('${t.Task_ID}')" class="w-full bg-red-900 hover:bg-red-800 px-3 py-2 text-sm pixel-border text-red-300 font-bold">↩ 退回重做</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRoutines() {
+      const container = document.getElementById('routineContainer');
+      const openIds = new Set();
+      container.querySelectorAll('details[data-tpl-id][open]').forEach(d => openIds.add(d.dataset.tplId));
+
+      const routines = globalData.dailyTemplates || [];
+      const players = globalData.users.filter(u => u.Account_Type === 'Player');
+      const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
+
+      if (routines.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 p-4 text-center">尚無例行任務。點擊上方「+ 新增」開始建立。</div>';
+        return;
+      }
+
+      container.innerHTML = routines.map(rt => {
+        const tplId = rt.Template_ID;
+        const currentAssignees = String(rt.Assignee_ID || 'TEAM').split(',');
+        const currentDays = String(rt.Trigger_Days || '0,1,2,3,4,5,6').split(',').map(d => d.trim());
+
+        const assigneeSelector = players.map(p => `
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" data-tpl="${tplId}" value="${p.User_ID}" ${currentAssignees.includes(p.User_ID) ? 'checked' : ''} class="w-5 h-5 tpl-assign-check">
+                <span class="text-sm md:text-base text-gray-300 font-bold">${p.Name}</span>
+            </label>
+         `).join('');
+
+        const dayCheckboxes = DAY_NAMES.map((name, i) => `
+            <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" value="${i}" ${currentDays.includes(String(i)) ? 'checked' : ''} class="w-4 h-4 rt-day-${tplId}">
+                <span class="text-sm md:text-base ${i === 0 || i === 6 ? 'text-red-400' : 'text-gray-300'}">${name}</span>
+            </label>
+         `).join('');
+
+        return `
+            <details data-tpl-id="${tplId}" class="bg-gray-800 pixel-border border-green-700 flex flex-col group mb-4 outline-none">
+                <summary class="p-3 cursor-pointer text-white font-bold bg-gray-900 border-b border-gray-700 flex justify-between items-center outline-none list-none">
+                    <span class="text-base md:text-lg text-yellow-400 truncate pr-2">📌 ${escapeHTML(rt.Task_Name)}</span>
+                    <span class="text-xs text-red-400 shrink-0 ml-2">⏰ ${parseTimeTag(rt.Time_Tag)} ▼</span>
+                </summary>
+
+                <div class="p-4 flex flex-col gap-4">
+                    <!-- 1. 任務描述 -->
+                    <div class="flex flex-col gap-1">
+                         <span class="text-xs text-gray-400">任務描述:</span>
+                         <input type="text" id="rt-name-${tplId}" value="${escapeHTML(rt.Task_Name)}" class="bg-gray-900 text-white p-2 text-base pixel-border font-bold w-full">
+                    </div>
+
+                    <!-- 2. 派發對象 -->
+                    <div class="flex flex-col gap-1">
+                         <span class="text-xs text-gray-400">派發對象:</span>
+                         <div class="flex flex-wrap gap-3 items-center bg-gray-900 px-3 py-2 pixel-border w-full">
+                            ${assigneeSelector}
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" data-tpl="${tplId}" value="TEAM" ${currentAssignees.includes('TEAM') ? 'checked' : ''} class="w-4 h-4 tpl-assign-check">
+                                <span class="text-sm text-purple-400 font-bold">TEAM</span>
+                            </label>
+                         </div>
+                    </div>
+
+                    <!-- 3. 觸發日 -->
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs text-gray-400">觸發日:</span>
+                        <div class="flex gap-3 flex-wrap bg-gray-900 px-3 py-2 items-center pixel-border w-full">${dayCheckboxes}</div>
+                    </div>
+
+                    <!-- 4. 任務設定 -->
+                    <div class="flex flex-col gap-1">
+                         <span class="text-xs text-gray-400">難度 · EXP · G · 時間:</span>
+                         <div class="flex flex-wrap items-center bg-gray-900 px-3 py-2 pixel-border w-full gap-2">
+                             <select id="rt-diff-${tplId}" onchange="autoFillRoutineRewards('${tplId}')" class="bg-gray-800 text-white p-2 text-sm pixel-border shrink-0 outline-none">
+                                <option value="E" ${rt.Difficulty === 'E' ? 'selected' : ''}>E</option>
+                                <option value="D" ${rt.Difficulty === 'D' ? 'selected' : ''}>D</option>
+                                <option value="C" ${rt.Difficulty === 'C' ? 'selected' : ''}>C</option>
+                                <option value="B" ${rt.Difficulty === 'B' ? 'selected' : ''}>B</option>
+                                <option value="A" ${rt.Difficulty === 'A' ? 'selected' : ''}>A</option>
+                                <option value="S" ${rt.Difficulty === 'S' ? 'selected' : ''}>S</option>
+                             </select>
+                             <div class="flex items-center shrink-0 gap-1">
+                                 <span class="text-yellow-400 font-bold text-sm">EXP</span>
+                                 <input type="number" id="rt-exp-${tplId}" value="${rt.Base_EXP}" style="-webkit-appearance:none;-moz-appearance:textfield" class="bg-gray-800 text-white p-2 text-sm pixel-border w-14 text-center font-bold outline-none">
+                             </div>
+                             <div class="flex items-center shrink-0 gap-1">
+                                 <span class="text-yellow-200 font-bold text-sm">G</span>
+                                 <input type="number" id="rt-gold-${tplId}" value="${rt.Base_Gold}" style="-webkit-appearance:none;-moz-appearance:textfield" class="bg-gray-800 text-white p-2 text-sm pixel-border w-14 text-center font-bold outline-none">
+                             </div>
+                             <input type="time" id="rt-time-${tplId}" value="${parseTimeTag(rt.Time_Tag)}" class="bg-gray-800 text-red-400 p-2 text-sm pixel-border w-28 font-bold shrink-0 outline-none">
+                         </div>
+                    </div>
+
+                    <!-- 5. 刪除/更新設定 -->
+                    <div class="flex justify-end gap-4 mt-2">
+                        <button onclick="deleteRoutine('${tplId}')" class="bg-red-900 hover:bg-red-800 px-8 py-3 text-base text-white pixel-border border-red-950 font-bold whitespace-nowrap">刪除</button>
+                        <button onclick="saveRoutineFromServer('${tplId}')" class="bg-green-700 hover:bg-green-600 px-8 py-3 text-base text-white pixel-border border-green-900 font-bold whitespace-nowrap">更新設定</button>
+                    </div>
+                </div>
+            </details>
+         `;
+      }).join('');
+      openIds.forEach(id => {
+        const el = container.querySelector(`details[data-tpl-id="${id}"]`);
+        if (el) el.open = true;
+      });
+    }
+
+    function saveRoutineFromServer(tplId) {
+      const name = document.getElementById(`rt-name-${tplId}`).value;
+      const diff = document.getElementById(`rt-diff-${tplId}`).value;
+      const exp = document.getElementById(`rt-exp-${tplId}`).value;
+      const gold = document.getElementById(`rt-gold-${tplId}`).value;
+      const time = document.getElementById(`rt-time-${tplId}`).value;
+
+      const checkboxes = document.querySelectorAll(`.tpl-assign-check[data-tpl="${tplId}"]:checked`);
+      const assignees = Array.from(checkboxes).map(cb => cb.value).join(',');
+      if (!assignees) return showToast("請至少選擇一位執行球員", "red");
+
+      const dayChecks = document.querySelectorAll(`.rt-day-${tplId}:checked`);
+      const triggerDays = Array.from(dayChecks).map(cb => cb.value).join(',');
+      if (!triggerDays) return showToast("請至少勾選一個觸發日", "red");
+
+      postAction({
+        action: "updateRoutine",
+        tplId: tplId,
+        taskName: name,
+        difficulty: diff,
+        exp: exp,
+        gold: gold,
+        timeTag: time,
+        assigneeId: assignees,
+        triggerDays: triggerDays,
+        actorId: currentUser.User_ID
+      });
+    }
+
+    function deleteRoutine(tplId) {
+      if (!confirm("確定刪除這個例行任務？（只刪除模板，不影響已派發的任務）")) return;
+      postAction({ action: "deleteRoutine", tplId: tplId, actorId: currentUser.User_ID });
+    }
+
+    function addNewRoutine() {
+      postAction({ action: "addRoutine", actorId: currentUser.User_ID });
+    }
+
+    function renderStatsView() {
+      const container = document.getElementById('view-stats');
+      let players = globalData.users.filter(u => u.Account_Type === 'Player');
+      players.sort((a, b) => {
+        if (a.User_ID === currentUser.User_ID) return -1;
+        if (b.User_ID === currentUser.User_ID) return 1;
+        return 0;
+      });
+
+      const isGM = currentUser.Account_Type === 'GM';
+
+      container.innerHTML = players.map(player => {
+        const sp = getPlayerSprite(player.User_ID);
+        let spriteClass = sp.height;
+        let spritePath = sp.idle;
+
+        // GM task list per player
+        let gmTaskSection = '';
+        if (isGM) {
+          const playerTasks = (globalData.tasks || []).filter(t => {
+            const assignees = String(t.Assignee_ID).split(',');
+            return (assignees.includes(player.User_ID) || assignees.includes('TEAM'))
+              && (t.Status === 'Pending' || t.Status === 'Reviewing' || t.Status === 'Failed');
+          });
+          const taskRows = playerTasks.length === 0
+            ? '<div class="text-gray-600 text-xs p-2">目前沒有進行中的任務。</div>'
+            : `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">` + playerTasks.map(t => {
+              const dlLabel = t.Deadline ? formatDeadline(t.Deadline) : '無期限';
+              const submittedBy = String(t.Submitted_By || '').split(',').filter(x => x);
+              const submitted = submittedBy.includes(player.User_ID);
+              const isTeamTask = String(t.Assignee_ID).includes('TEAM');
+              let statusLabel = t.Status === 'Reviewing' ? '審核中' : t.Status === 'Failed' ? '失敗' : (submitted ? '已提交' : '進行中');
+              let statusColor = t.Status === 'Reviewing' ? 'text-yellow-400' : t.Status === 'Failed' ? 'text-red-500' : (submitted ? 'text-green-400' : 'text-blue-300');
+
+              return `
+                <div class="relative bg-gray-700 p-3 pixel-border text-center flex flex-col justify-center">
+                    <button onclick="cancelTask('${t.Task_ID}')" class="absolute -top-2 -right-2 bg-red-900 hover:bg-red-800 text-white text-xs px-2 py-1 pixel-border border-red-950 font-bold z-10 shadow-lg shadow-black">刪除</button>
+                    <div class="text-base text-white mb-2 flex items-center justify-center gap-1">
+                        <span class="text-yellow-500 font-bold">[${t.Difficulty}]</span>
+                        <span class="truncate block max-w-[120px]" title="${escapeHTML(t.Task_Name)}">${escapeHTML(t.Task_Name)}</span>
+                        ${isTeamTask ? '<span class="text-purple-400 text-[10px] ml-1 font-bold bg-purple-900 px-1 pixel-border border-purple-700">T</span>' : ''}
+                    </div>
+                    <div class="text-xs ${statusColor}">
+                       ${statusLabel} | <span class="live-countdown" data-deadline="${t.Deadline || ''}">${escapeHTML(dlLabel)}</span>
+                    </div>
+                </div>
+              `;
+            }).join('') + `</div>`;
+
+          gmTaskSection = `
+                        <h3 class="text-yellow-400 mt-2 text-sm mb-2">當前任務 (${playerTasks.length})</h3>
+                        ${taskRows}`;
+        }
+
+        return `
+                <details class="sprite-box-bg pixel-border-blue mb-2 group">
+                    <summary class="p-4 cursor-pointer flex justify-between items-center text-xl text-blue-400 bg-gray-800 hover:bg-gray-700 select-none">
+                        <div class="flex items-center gap-3">
+                            <span>${escapeHTML(player.Name)} STATUS</span>
+                        </div>
+                        <span class="text-sm text-gray-500 group-open:hidden">▼ EXPAND</span>
+                        <span class="text-sm text-gray-500 hidden group-open:inline">▲ FOLD</span>
+                    </summary>
+                    <div class="p-4 flex flex-col gap-4 border-t border-blue-800">
+                        <div class="flex items-center gap-6">
+                            <img src="${spritePath}" class="player-sprite ${spriteClass} object-contain" alt="Full Body">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm flex-1">
+                                <div class="bg-gray-800 p-2 pixel-border flex flex-col justify-between h-[70px]">
+                                    <div class="text-gray-400 text-base text-left leading-none uppercase">LV</div>
+                                    <div class="text-xl text-white text-right font-bold leading-none">${player.Level}</div>
+                                </div>
+                                <div class="bg-gray-800 p-2 pixel-border flex flex-col justify-between h-[70px]">
+                                    <div class="text-gray-400 text-base text-left leading-none uppercase">EXP</div>
+                                    <div class="text-base text-green-400 text-right font-bold leading-none whitespace-nowrap">${expDisplay(player.Level, player.EXP)}</div>
+                                </div>
+                                <div class="bg-gray-800 p-2 pixel-border flex flex-col justify-between h-[70px]">
+                                    <div class="text-gray-400 text-base text-left leading-none uppercase">G</div>
+                                    <div class="text-xl text-yellow-400 text-right font-bold leading-none">${player.Gold}</div>
+                                </div>
+                                <div class="bg-gray-800 p-2 pixel-border flex flex-col justify-between h-[70px]">
+                                    <div class="text-gray-400 text-base text-left leading-none uppercase">SP</div>
+                                    <div class="text-base text-blue-400 text-right font-bold leading-none whitespace-nowrap">${player.Current_SP}<span class="text-xs text-gray-500">/${player.Max_SP}</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${gmTaskSection}
+
+                        <h3 class="text-yellow-400 mt-2">SKILLS</h3>
+                        <div class="text-gray-500 text-sm py-2">— 尚無解鎖技能 —</div>
+
+                        <h3 class="text-green-400 mt-2">BADGES</h3>
+                        <div class="flex gap-4">
+                            <div class="w-16 h-16 bg-yellow-600 rounded-full flex items-center justify-center pixel-border text-xs text-white text-center leading-tight shadow-lg shadow-yellow-900">ROOKIE</div>
+                            <div class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center pixel-border text-[10px] text-gray-500 opacity-50">LOCKED</div>
+                        </div>
+                    </div>
+                </details>
+            `;
+      }).join('');
+    }
+
+    function renderTemplates() {
+      const container = document.getElementById('templatesContainer');
+      const templates = globalData.dailyTemplates || [];
+
+      if (templates.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 p-4">任務庫目前為空。</div>';
+        return;
+      }
+
+      container.innerHTML = templates.map((tpl) => {
+        return `
+                <div class="bg-gray-800 p-3 pixel-border border-gray-600 flex flex-col gap-2 w-full">
+                    <div class="flex justify-between items-start">
+                        <div class="text-base text-blue-300 font-bold">${escapeHTML(tpl.Task_Name)}</div>
+                        <div class="text-xs text-gray-400 bg-gray-700 px-1">${escapeHTML(tpl.Time_Tag)}</div>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        RANK: ${tpl.Difficulty} | ${tpl.Base_EXP} EXP | ${tpl.Base_Gold} G
+                    </div>
+                    <div class="flex gap-2 mt-1">
+                        <button onclick="editTemplateServer('${tpl.Template_ID}')" class="flex-1 bg-blue-700 hover:bg-blue-600 py-2 text-xs pixel-border">修改設定</button>
+                    </div>
+                </div>
+            `}).join('');
+    }
+
+    function toggleTemplateForm() {
+      document.getElementById('addTemplateForm').classList.toggle('hidden');
+      if (document.getElementById('addTemplateForm').classList.contains('hidden')) {
+        editingTemplateIndex = -1;
+        document.getElementById('saveTplBtn').innerText = "SAVE TACTIC";
+        document.getElementById('tplName').value = '';
+      }
+    }
+
+    function editTemplate(index) {
+      editingTemplateIndex = index;
+      const tpl = gmTemplates[index];
+
+      document.getElementById('tplName').value = tpl.name;
+      document.getElementById('tplEXP').value = tpl.exp;
+      document.getElementById('tplGold').value = tpl.gold;
+      document.querySelector(`input[name="tplDlType"][value="${tpl.dlType}"]`).checked = true;
+
+      if (tpl.dlType === 'time') document.getElementById('tplDlTime').value = tpl.dlVal;
+      if (tpl.dlType === 'duration') document.getElementById('tplDlMins').value = tpl.dlVal;
+
+      document.getElementById('addTemplateForm').classList.remove('hidden');
+      document.getElementById('saveTplBtn').innerText = "UPDATE TACTIC";
+    }
+
+    function saveTemplate() {
+      const name = document.getElementById('tplName').value;
+      const exp = document.getElementById('tplEXP').value || 10;
+      const gold = document.getElementById('tplGold').value || 5;
+      const difficulty = document.getElementById('tplDifficulty').value;
+
+      const dlType = document.querySelector('input[name="tplDlType"]:checked').value;
+      let dlVal = '';
+      if (dlType === 'time') dlVal = document.getElementById('tplDlTime').value;
+
+      if (!name) return showToast("請輸入任務描述", "red");
+      if (dlType === 'time' && !dlVal) return showToast("請選擇時間", "red");
+
+      if (editingTemplateIndex > -1) {
+        gmTemplates[editingTemplateIndex] = { name, exp: parseInt(exp), gold: parseInt(gold), difficulty, dlType, dlVal };
+        editingTemplateIndex = -1;
+        document.getElementById('saveTplBtn').innerText = "儲存戰術庫";
+      } else {
+        gmTemplates.push({ name, exp: parseInt(exp), gold: parseInt(gold), difficulty, dlType, dlVal });
+      }
+
+      sessionStorage.setItem('gmTemplates', JSON.stringify(gmTemplates));
+
+      document.getElementById('tplName').value = '';
+      document.getElementById('addTemplateForm').classList.add('hidden');
+      renderTemplates();
+      showToast("戰術已暫存");
+    }
+
+    function deleteTemplate(index) {
+      if (confirm("DELETE TACTIC?")) {
+        gmTemplates.splice(index, 1);
+        sessionStorage.setItem('gmTemplates', JSON.stringify(gmTemplates));
+        renderTemplates();
+      }
+    }
+
+    function fireTemplate(index) {
+      const tpl = gmTemplates[index];
+      const assignee = getSelectedCheckboxes('tacticsAssign');
+      if (!assignee) return showToast("SELECT ASSIGNEE", "red");
+
+      let deadlineISO = '';
+      if (tpl.dlType === 'time') {
+        const [h, m] = tpl.dlVal.split(':');
+        const d = new Date();
+        d.setHours(parseInt(h), parseInt(m), 0, 0);
+        deadlineISO = d.toISOString();
+      } else if (tpl.dlType === 'duration') {
+        deadlineISO = new Date(Date.now() + parseInt(tpl.dlVal) * 60000).toISOString();
+      }
+
+      postAction({ action: "quickAddTask", taskName: tpl.name, deadline: deadlineISO, exp: tpl.exp, gold: tpl.gold, difficulty: tpl.difficulty, assigneeId: assignee, actorId: currentUser.User_ID });
+    }
+
+    async function postAction(payload, onSuccess) {
+      showToast("SENDING...", "blue");
+      try {
+        // 🛡️ 將混淆 Token 加入 Payload 送給後端驗證
+        payload.pin = currentUser._tk;
+
+        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const resData = await response.json();
+
+        if (resData.success) {
+          if (onSuccess) {
+            onSuccess(resData);
+          } else if (resData.isHit !== undefined) {
+            if (resData.isHit) {
+              showToast(`SWISH! +${resData.points} PTS!`, "blue");
+            } else {
+              showToast(`MISSED! BUT GOT EXP!`, "yellow");
+            }
+          } else {
+            showToast("SUCCESS!", "green");
+          }
+          if (resData.levelUps && resData.levelUps.length > 0) {
+            resData.levelUps.forEach(lu => {
+              setTimeout(() => showToast(`🎉 ${lu.name} LEVEL UP! Lv${lu.from} → Lv${lu.to}!`, "purple"), 800);
+            });
+          }
+          fetchData();
+
+        } else {
+          showToast("ERROR: " + resData.error, "red");
+        }
+      } catch (err) {
+        showToast("NETWORK ERROR", "red");
+      }
+    }
+
+    function submitTask(taskId) { postAction({ action: "submitTask", taskId: taskId, actorId: currentUser.User_ID }); }
+    function undoTask(taskId) { postAction({ action: "undoTask", taskId: taskId, actorId: currentUser.User_ID }); }
+    function approveTask(taskId, quality) { postAction({ action: "approveTask", taskId: taskId, quality: quality, actorId: currentUser.User_ID }); }
+    function rejectTask(taskId) { postAction({ action: "rejectTask", taskId: taskId, actorId: currentUser.User_ID }); }
+
+    function cancelTask(taskId) {
+      if (confirm("確定取消這項未執行的常規任務嗎？")) {
+        postAction({ action: "cancelTask", taskId: taskId, actorId: currentUser.User_ID });
+      }
+    }
+
+    function callFoul(points, goldPenalty) {
+      const targetId = document.getElementById('foulTargetSelect').value;
+      const targetName = targetId === 'TEAM' ? '全隊' : (globalData.users.find(u => u.User_ID === targetId)?.Name || targetId);
+      const penaltyNote = goldPenalty > 0 ? `，${targetId === 'TEAM' ? '各人' : targetName}扣 ${goldPenalty}G` : '';
+      if (!confirm(`確定對 ${targetName} 宣告技術犯規？（怪獸 +${points} 分${penaltyNote}）`)) return;
+      postAction({ action: "callFoul", scorePoints: points, goldPenalty: goldPenalty || 0, targetId, actorId: currentUser.User_ID },
+        (res) => {
+          const deducted = (res.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
+          showToast(`⚠️ 怪獸+${points}！${deducted ? ' ' + deducted : ''}`, 'red');
+        });
+    }
+
+    function renderShop() {
+      if (!currentUser) return;
+
+      // 修正：家長也可以看商店
+      let goldDisplay = currentUser.Account_Type === 'Player' ? currentUser.Gold + " G" : "GM VIEW";
+      document.getElementById('shopGoldDisplay').innerText = goldDisplay;
+
+      const shopContainer = document.getElementById('shopItemsContainer');
+      const shopItems = (globalData.shopItems || []).map(row => ({
+        id: row.Item_ID,
+        name: row.Name,
+        desc: row.Description,
+        cost: row.Cost,
+        theme: row.Theme,
+        requireApproval: row.Require_Approval
+      }));
+
+      // Tailwind 動態字串防呆（CDN 模式必須寫死完整 class 名稱）
+      const borderColors = { blue: "border-blue-600", green: "border-green-600", purple: "border-purple-600", red: "border-red-600", yellow: "border-yellow-600" };
+      const btnColors = {
+        blue: "bg-blue-700 hover:bg-blue-600 border-blue-900",
+        green: "bg-green-700 hover:bg-green-600 border-green-900",
+        purple: "bg-purple-700 hover:bg-purple-600 border-purple-900",
+        red: "bg-red-700 hover:bg-red-600 border-red-900",
+        yellow: "bg-yellow-700 hover:bg-yellow-600 border-yellow-900"
+      };
+
+      const isPlayer = currentUser.Account_Type === 'Player';
+
+      // 玩家自己的待審兌換
+      const myPending = isPlayer
+        ? (globalData.redemptions || []).filter(r => r.Player_ID === currentUser.User_ID && r.Status === 'Pending')
+        : [];
+      const pendingSection = myPending.length > 0
+        ? `<div class="bg-gray-800 p-3 pixel-border border-yellow-700 flex flex-col gap-2 mb-2">
+            <div class="text-yellow-400 text-sm font-bold">⏳ 等待家長審核</div>
+            ${myPending.map(r => `<div class="text-gray-300 text-sm">・${escapeHTML(r.Item_Name)} (${r.Cost} G)</div>`).join('')}
+          </div>`
+        : '';
+
+      shopContainer.innerHTML = pendingSection + shopItems.map(item => {
+        const gmGiftButtons = globalData.users.filter(u => u.Account_Type === 'Player').map(u => `
+                <button onclick="adminGiveGift('${u.User_ID}', '${item.name}')" class="bg-red-900 hover:bg-red-800 text-[10px] px-2 py-1 pixel-border border-red-700">送給 ${u.Name}</button>
+            `).join('');
+
+        const approvalLabel = item.requireApproval ? '<span class="text-yellow-500 text-xs ml-1">需審核</span>' : '';
+
+        return `
+            <div class="bg-gray-900 p-4 pixel-border ${borderColors[item.theme] || 'border-gray-600'} flex flex-col md:flex-row justify-between items-center transition-colors gap-3">
+                <div class="flex-1">
+                    <div class="text-white text-lg">${escapeHTML(item.name)}${approvalLabel}</div>
+                    <div class="text-gray-400 text-sm">${escapeHTML(item.desc)}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-yellow-400 font-bold text-xl">${item.cost} G</span>
+                    ${isPlayer ?
+            (currentUser.Gold >= item.cost && currentUser.Gold >= 0 ?
+              `<button onclick="redeemReward('${item.name}', ${item.cost}, ${item.requireApproval})" class="${btnColors[item.theme]} text-white px-4 py-2 border-b-4 border-r-4 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 whitespace-nowrap">${item.requireApproval ? '申請' : '兌換'}</button>`
+              : `<button disabled class="bg-gray-700 text-gray-500 px-4 py-2 border-b-4 border-r-4 border-gray-900 cursor-not-allowed whitespace-nowrap">${currentUser.Gold < 0 ? 'Gold 負數' : '金額不足'}</button>`
+            )
+            : `<div class="flex flex-col gap-1">${gmGiftButtons}</div>`
+          }
+                </div>
+            </div>`;
+      }).join('');
+    }
+
+    function redeemReward(itemName, cost, requireApproval) {
+      const msg = requireApproval
+        ? `要花掉 ${cost} G 申請 [${itemName}]？\n（需要家長審核後才生效）`
+        : `要花掉 ${cost} G 買 [${itemName}]？`;
+      if (confirm(msg)) {
+        postAction({ action: "redeemReward", itemName, cost, actorId: currentUser.User_ID });
+        setTimeout(renderShop, 1500);
+      }
+    }
+
+    function renderRedemptionPanel() {
+      const container = document.getElementById('redemptionContainer');
+      const pending = (globalData.redemptions || []).filter(r => r.Status === 'Pending');
+
+      if (pending.length === 0) {
+        container.innerHTML = '<div class="text-gray-500 p-4 text-center">目前沒有待審核兌換。</div>';
+        return;
+      }
+
+      container.innerHTML = pending.map(r => {
+        const player = (globalData.users || []).find(u => u.User_ID === r.Player_ID);
+        const playerName = player?.Name || r.Player_ID;
+        const timeStr = r.Created_At ? new Date(r.Created_At).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+        return `
+          <div class="bg-gray-800 p-4 pixel-border border-yellow-900 flex flex-col gap-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-yellow-400 font-bold text-lg">${escapeHTML(r.Item_Name)}</span>
+                <span class="text-gray-400 text-sm ml-2">${r.Cost} G</span>
+              </div>
+              <div class="text-xs text-gray-400 text-right">
+                <div>申請人：${escapeHTML(playerName)}</div>
+                <div>${timeStr}</div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <div class="flex gap-2">
+                <button onclick="approveRedemption('${r.Redemption_ID}')" class="flex-1 bg-green-900 hover:bg-green-700 px-3 py-2 text-sm pixel-border font-bold text-green-300">✓ 核准</button>
+                <button onclick="rejectRedemption('${r.Redemption_ID}')" class="flex-1 bg-red-900 hover:bg-red-800 px-3 py-2 text-sm pixel-border font-bold text-red-300">✗ 拒絕（退金幣）</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function approveRedemption(redemptionId) {
+      postAction({ action: "approveRedemption", redemptionId, actorId: currentUser.User_ID });
+    }
+
+    function rejectRedemption(redemptionId) {
+      postAction({ action: "rejectRedemption", redemptionId, actorId: currentUser.User_ID });
+    }
+
+    function quickAdd() {
+      const name = document.getElementById('taskName').value;
+      const exp = document.getElementById('expVal').value;
+      const gold = document.getElementById('goldVal').value;
+      const assignee = getSelectedCheckboxes('customAssign');
+
+      if (!assignee) return showToast("SELECT ASSIGNEE", "red");
+      if (!name) return showToast("ENTER DESC", "red");
+
+      const dlType = document.querySelector('input[name="dlType"]:checked').value;
+      let deadlineISO = '';
+
+      if (dlType === 'date') {
+        const dateVal = document.getElementById('dlDate').value;
+        const timeVal = document.getElementById('dlTime').value;
+        if (!dateVal || !timeVal) return showToast("請選擇日期和時間", "red");
+        deadlineISO = new Date(dateVal + 'T' + timeVal + ':00').toISOString();
+      } else if (dlType === 'duration') {
+        const minsVal = document.getElementById('dlMins').value;
+        if (!minsVal) return showToast("ENTER MINS", "red");
+        deadlineISO = new Date(Date.now() + parseInt(minsVal) * 60000).toISOString();
+      }
+
+      const difficulty = document.getElementById('taskDifficulty').value;
+      postAction({ action: "quickAddTask", taskName: name, deadline: deadlineISO, assigneeId: assignee, difficulty: difficulty, exp: exp, gold: gold, actorId: currentUser.User_ID });
+      document.getElementById('taskName').value = "";
+    }
+
+    let _toastTimer = null;
+    function showToast(msg, colorClass = "green") {
+      if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.className = `fixed bottom-4 right-4 text-white px-6 py-4 pixel-border z-50 transition-opacity text-lg uppercase`;
+      if (colorClass === "red")    toast.classList.add("bg-red-600");
+      else if (colorClass === "blue")   toast.classList.add("bg-blue-600");
+      else if (colorClass === "yellow") toast.classList.add("bg-yellow-600");
+      else if (colorClass === "purple") toast.classList.add("bg-purple-600");
+      else toast.classList.add("bg-green-600");
+      toast.classList.remove('hidden');
+      // 依顏色給不同顯示時間：red/yellow=5s, purple=4s, 其他=3s
+      const duration = (colorClass === 'red' || colorClass === 'yellow') ? 5000
+                     : colorClass === 'purple' ? 4000 : 3000;
+      _toastTimer = setTimeout(() => toast.classList.add('hidden'), duration);
+    }
+
+    async function fetchNewsHistory() {
+      document.getElementById('newsHistoryModal').classList.remove('hidden');
+      document.getElementById('newsHistoryList').innerHTML = '<div class="text-blue-400 p-8 text-center animate-blink">正在從聯盟檔案室搬運卷軸...</div>';
+      try {
+        const history = globalData.news || [];
+
+        if (history.length === 0) {
+          document.getElementById('newsHistoryList').innerHTML = '<div class="text-gray-500 p-8 text-center">目前尚無歷史存檔。</div>';
+          return;
+        }
+
+        document.getElementById('newsHistoryList').innerHTML = [...history].reverse().map(n => `
+                <details class="bg-gray-800 border-l-4 border-blue-600">
+                    <summary class="flex justify-between items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-700">
+                        <span class="text-xs text-blue-400 font-bold">${String(n.Date).slice(0, 10)}</span>
+                        <span class="text-[10px] text-gray-500">${n.Type === 'Weekly' ? '週報' : '日報'}</span>
+                    </summary>
+                    <div class="text-sm text-gray-200 whitespace-pre-wrap px-4 pb-4 pt-1">${escapeHTML(n.Content)}</div>
+                </details>
+            `).join('');
+      } catch (e) {
+        document.getElementById('newsHistoryList').innerHTML = '<div class="text-red-500 p-8 text-center">搬運失敗。</div>';
+      }
+    }
+
+    function closeNewsHistory() {
+      document.getElementById('newsHistoryModal').classList.add('hidden');
+    }
+
+    function callCustomFoul() {
+      const inputs = document.getElementById('customFoulInputs');
+      inputs.classList.toggle('hidden');
+    }
+
+    function confirmCustomFoul() {
+      const pts = parseInt(document.getElementById('customFoulPoints').value);
+      const gold = parseInt(document.getElementById('customFoulGold').value) || 0;
+      if (isNaN(pts) || pts < 1) return showToast('請輸入有效分數', 'red');
+      const targetId = document.getElementById('foulTargetSelect').value;
+      const targetName = targetId === 'TEAM' ? '全隊' : (globalData.users.find(u => u.User_ID === targetId)?.Name || targetId);
+      const penaltyNote = gold > 0 ? `，${targetId === 'TEAM' ? '各人' : targetName}扣 ${gold}G` : '';
+      if (!confirm(`確定對 ${targetName} 宣告自訂懲罐？（怪獸 +${pts} 分${penaltyNote}）`)) return;
+      document.getElementById('customFoulInputs').classList.add('hidden');
+      postAction({ action: "callFoul", scorePoints: pts, goldPenalty: gold, targetId, actorId: currentUser.User_ID },
+        (res) => {
+          const deducted = (res.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
+          showToast(`⚠️ 怪獸+${pts}！${deducted ? ' ' + deducted : ''}`, 'red');
+        });
+    }
+
+    function editTemplateServer(tplId) {
+      const tpl = globalData.dailyTemplates.find(t => t.Template_ID === tplId);
+      if (!tpl) return;
+
+      const newName = prompt("編輯任務庫描述 (Description):", tpl.Task_Name);
+      if (newName === null) return;
+      const newDiff = prompt("編輯任務等級 (Rank E/D/C/B/A/S):", tpl.Difficulty);
+      if (newDiff === null) return;
+      const newExp = prompt("編輯 經驗值 (EXP):", tpl.Base_EXP);
+      if (newExp === null) return;
+      const newGold = prompt("編輯 金幣 (G):", tpl.Base_Gold);
+      if (newGold === null) return;
+
+      postAction({
+        action: "editTemplate",
+        tplId: tplId,
+        taskName: newName,
+        difficulty: newDiff,
+        exp: newExp,
+        gold: newGold,
+        actorId: currentUser.User_ID
+      });
+    }
+
+    function editTaskServer(taskId) {
+      const t = globalData.tasks.find(x => x.Task_ID === taskId);
+      if (!t) return;
+
+      const newName = prompt("編輯指派任務描述 (Description):", t.Task_Name);
+      if (newName === null) return;
+      const newDiff = prompt("編輯等級 (Rank E/D/C/B/A/S):", t.Difficulty);
+      if (newDiff === null) return;
+      const newExp = prompt("編輯 經驗值 (EXP):", t.Base_EXP);
+      if (newExp === null) return;
+      const newGold = prompt("編輯 金幣 (G):", t.Base_Gold);
+      if (newGold === null) return;
+
+      postAction({
+        action: "updateTask",
+        taskId: taskId,
+        taskName: newName,
+        difficulty: newDiff,
+        exp: newExp,
+        gold: newGold,
+        actorId: currentUser.User_ID
+      });
+    }
+
+    // GM 直接送禮
+    function adminGiveGift(userId, itemName) {
+      if (!confirm(`⚠️ 警告: GM 直接送禮會跳過金幣消耗，這可能破壞遊戲體驗！\n\n確定將 [${itemName}] 送給 ${userId} 嗎？`)) return;
+      postAction({ action: "giveGift", targetId: userId, itemName: itemName, actorId: currentUser.User_ID });
+    }
+
+    setInterval(() => {
+      document.querySelectorAll('.live-countdown').forEach(el => {
+        const dl = el.getAttribute('data-deadline');
+        if (dl) {
+          const formatted = formatDeadline(dl);
+          if (formatted !== el.innerText) {
+            el.innerText = formatted || '無期限';
+          }
+        }
+      });
+    }, 1000);
+
+    // ── Intro scroll (rAF-driven) ────────────────────────────
+    let introRAF = null;
+    let introProgress = 0;
+    let introHolding = false;
+    let introLastTs = null;
+    let introTypewriterFired = false;
+    const INTRO_TOTAL_MS = 40000;
+
+    function setIntroHolding(v) { introHolding = v; }
+
+    function introStep(ts) {
+      if (!introLastTs) introLastTs = ts;
+      const dt = ts - introLastTs;
+      introLastTs = ts;
+      introProgress = Math.min(introProgress + (dt * (introHolding ? 6 : 1)) / INTRO_TOTAL_MS, 1);
+      const content = document.getElementById('introContent');
+      const startY = window.innerHeight;
+      const endY = -(content.offsetHeight - window.innerHeight * 0.1);
+      content.style.transform = `translateY(${startY + (endY - startY) * introProgress}px)`;
+      if (!introTypewriterFired && introProgress >= 39 / 40) {
+        introTypewriterFired = true;
+        startIntroTypewriter();
+      }
+      if (introProgress < 1) introRAF = requestAnimationFrame(introStep);
+    }
+
+    // ── Music player ─────────────────────────────────────────
+    const _MUSIC_BASE = _ASSET_BASE + 'music/';
+    const MUSIC_TRACKS = [
+      _MUSIC_BASE + 'The_Final_Buzzer_Quest.mp3',
+      _MUSIC_BASE + 'The_Hero_s_Morning_Routine.mp3',
+      _MUSIC_BASE + 'The_Hero%E2%80%99s_Kitchen_Table.mp3',
+    ];
+    let musicAudio = null;
+    let musicIdx = 0;
+    const MUSIC_VOL = 0.35;
+
+    function _fadeVol(audio, to, stepMs, cb) {
+      const step = to > audio.volume ? 0.02 : -0.02;
+      const t = setInterval(() => {
+        audio.volume = Math.max(0, Math.min(1, audio.volume + step));
+        if ((step > 0 && audio.volume >= to) || (step < 0 && audio.volume <= to)) {
+          audio.volume = to;
+          clearInterval(t);
+          if (cb) cb();
+        }
+      }, stepMs);
+    }
+
+    function _playTrack(idx) {
+      const audio = new Audio(MUSIC_TRACKS[idx]);
+      audio.volume = 0;
+      musicAudio = audio;
+      audio.play().then(() => {
+        _fadeVol(audio, MUSIC_VOL, 80);
+      }).catch(() => {
+        musicAudio = null;
+        document.addEventListener('pointerdown', () => { if (!musicAudio) _playTrack(musicIdx); }, { once: true });
+        return;
+      });
+      let fadingOut = false;
+      audio.addEventListener('timeupdate', function check() {
+        if (!audio.duration || fadingOut) return;
+        if (audio.currentTime >= audio.duration - 4) {
+          fadingOut = true;
+          audio.removeEventListener('timeupdate', check);
+          _fadeVol(audio, 0, 80, () => {
+            audio.pause();
+            if (musicAudio === audio) {
+              musicIdx = (musicIdx + 1) % MUSIC_TRACKS.length;
+              _playTrack(musicIdx);
+            }
+          });
+        }
+      });
+    }
+
+    function startMusic() {
+      if (musicAudio) return;
+      _playTrack(musicIdx);
+    }
+
+    function stopMusic() {
+      if (!musicAudio) return;
+      const audio = musicAudio;
+      musicAudio = null;
+      _fadeVol(audio, 0, 80, () => audio.pause());
+    }
+
+    let _audioCtx = null;
+
+    function getAudioCtx() {
+      if (!_audioCtx || _audioCtx.state === 'closed') {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (_audioCtx.state === 'suspended') _audioCtx.resume();
+      return _audioCtx;
+    }
+
+    document.addEventListener('click', () => { try { getAudioCtx(); } catch (e) { } }, { once: true });
+
+    function playDribble() {
+      try {
+        const ctx = getAudioCtx();
+        const t = ctx.currentTime;
+        // Low thud: sine sweep 200→55 Hz
+        const osc = ctx.createOscillator();
+        const og = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(55, t + 0.13);
+        og.gain.setValueAtTime(1.0, t);
+        og.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(og); og.connect(ctx.destination);
+        osc.start(t); osc.stop(t + 0.18);
+        // Click: short noise burst
+        const bufLen = Math.floor(ctx.sampleRate * 0.018);
+        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        const ns = ctx.createBufferSource();
+        ns.buffer = buf;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.45, t);
+        ns.connect(ng); ng.connect(ctx.destination);
+        ns.start(t);
+      } catch (e) { }
+    }
+
+    function startIntroTypewriter() {
+      const wrap = document.getElementById('introFinalLine');
+      if (!wrap) return;
+      const text = '球，在你們手上了。';
+      wrap.innerHTML = `<div style="transform:translateY(-7rem)">${text.split('').map(c => `<span style="opacity:0;transition:opacity 0.3s">${c}</span>`).join('')
+        }</div>`;
+      wrap.style.opacity = '1';
+      const beat = 700;
+      const charDelay = 280;
+      wrap.querySelectorAll('div span').forEach((el, i) => {
+        const delay = i === 0 ? 0 : beat + (i - 1) * charDelay;
+        setTimeout(() => { el.style.opacity = '1'; playDribble(); }, delay);
+      });
+    }
+
+    function showIntro() {
+      if (introRAF) cancelAnimationFrame(introRAF);
+      introProgress = 0; introHolding = false; introLastTs = null; introTypewriterFired = false;
+      const wrap = document.getElementById('introFinalLine');
+      if (wrap) { wrap.style.opacity = '0'; wrap.innerHTML = ''; }
+      const content = document.getElementById('introContent');
+      content.style.transform = '';
+      document.getElementById('introModal').classList.remove('hidden');
+      introRAF = requestAnimationFrame(introStep);
+    }
+
+    function closeIntro() {
+      if (introRAF) { cancelAnimationFrame(introRAF); introRAF = null; }
+      introHolding = false;
+      document.getElementById('introModal').classList.add('hidden');
+      localStorage.setItem('flLeagueIntroSeen', '1');
+    }
+
+    function maybeShowIntro() {
+      if (!localStorage.getItem('flLeagueIntroSeen')) {
+        showIntro();
+      } else {
+        document.getElementById('replayIntroBtn').classList.remove('hidden');
+      }
+    }
+
+    function switchViewShowReplay(viewName) {
+      const btn = document.getElementById('replayIntroBtn');
+      if (btn) btn.classList.toggle('hidden', viewName !== 'login');
+    }
+
+    window.onload = function () {
+      init();
+      maybeShowIntro();
+      startMusic();
+    };
+  </script>
+</body>
+
+</html>

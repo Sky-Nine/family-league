@@ -1,0 +1,13 @@
+.DS_Store
+Code_84.js
+index_84.html
+Code_85.js
+index_85.html
+scratch/
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+node_modules/
+.env
+*.pyc

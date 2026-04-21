@@ -1,0 +1,14 @@
+tools/**
+assets/**
+docs/**
+*.md
+*.png
+*.gif
+*.pdf
+scratch/**
+.claude/**
+node_modules/**
+Code_84.js
+index_84.html
+Code_85.js
+index_85.html
