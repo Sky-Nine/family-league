@@ -139,6 +139,11 @@ function setupSheets() {
     ensureStateKey_(stateSheet, "Weekly_Monster_Score", "0", "本週怪獸總分");
     ensureStateKey_(stateSheet, "League_Opened", "false", "聯盟是否已完成開幕式（首週週報旗標）");
 
+    // 11. AI 預生成廣播模板 (Weekly)
+    ensureStateKey_(stateSheet, "Weekly_Score_Templates", "[]", "每週 AI 預生成的得分廣播模板");
+    ensureStateKey_(stateSheet, "Weekly_Miss_Templates", "[]", "每週 AI 預生成的打鐵廣播模板");
+    ensureStateKey_(stateSheet, "Weekly_Foul_Templates", "[]", "每週 AI 預生成的犯規廣播模板");
+
     Logger.log("✅ setupSheets 完成（專業解耦遷移模式）");
 }
 
@@ -308,9 +313,7 @@ function generateDailyTasks() {
         }
     });
 
-    // 1. 每日刷新時，將分數與新聞稿歸零
-    updateGlobalState(ss, "Team_Score", "0");
-    updateGlobalState(ss, "Monster_Score", "0");
+    // 1. 每日刷新時，重置每日新聞稿預設文字 (不再每日歸零分數，改為週一結算時歸零)
     updateGlobalState(ss, "Daily_News", "今日比賽剛開始，準備好大顯身手了嗎？");
     
     const todayDay = new Date().getDay().toString(); // 0(Sun) ~ 6(Sat)
@@ -393,6 +396,12 @@ function dailyEODProcess() {
         updateGlobalState(ss, "Team_Score", "0");
         updateGlobalState(ss, "Monster_Score", "0");
         safeAppendRow(ss.getSheetByName("Logs"), [Utilities.getUuid(), new Date().toISOString(), seasonId, "SYSTEM", "WEEKLY_RESET", "Match Restarted"]);
+
+        // 生成本週專屬 AI 廣播模板
+        generateWeeklyBroadcastTemplates();
+
+        // 執行滾動式封存，搬移超過 14 天的舊日誌
+        archiveOldLogs();
     }
 
     // 5. 生成明日花絮文字（供前端跑馬燈使用）
@@ -421,6 +430,9 @@ function generateMatchReport(isWeekly = false) {
     
     const targetLogs = logs.filter(l => new Date(l.Timestamp).getTime() >= startTimeByMs);
     
+    let dailyTeamPoints = 0;
+    let dailyMonsterPoints = 0;
+
     const logSummary = targetLogs.map(l => {
         const actor = users.find(u => u.User_ID === l.Actor_ID)?.Name || l.Actor_ID;
         const time = Utilities.formatDate(new Date(l.Timestamp), "GMT+8", "HH:mm");
@@ -429,6 +441,14 @@ function generateMatchReport(isWeekly = false) {
         try {
             const det = JSON.parse(l.Detail_JSON);
             extra = det.name || det.narrative || "";
+            
+            // 計算區間內的得分
+            if (['TASK_APPROVE', 'AWESOME_MOVE'].includes(l.Action_Type)) {
+                dailyTeamPoints += (det.points || 0);
+            } else if (['TASK_EXPIRED', 'FOUL_CALLED', 'MONSTER_AND1', 'MONSTER_RUN'].includes(l.Action_Type)) {
+                let p = det.points !== undefined ? det.points : (det.addedPoints || 0);
+                dailyMonsterPoints += p;
+            }
         } catch(e){}
         return `[${time}] ${actor}: ${l.Action_Type} ${extra}`;
     }).join("\n");
@@ -436,11 +456,11 @@ function generateMatchReport(isWeekly = false) {
     const teamScore = getGlobalState(ss, isWeekly ? "Weekly_Team_Score" : "Team_Score");
     const monsterScore = getGlobalState(ss, isWeekly ? "Weekly_Monster_Score" : "Monster_Score");
 
-    const background = `背景設定：Sheldon（11歲）與 Leonard（8歲）是聯盟的 Noob 初心者球員，目前在 Phase 1，尚未擔任任何固定的籃球場上位置，一切都在學習中。對手是調皮的怪獸隊。`;
+    const background = `背景設定：Sheldon（11歲）與 Leonard（8歲）是聯盟的 Noob 初心者球員，尚未擔任任何固定的籃球場上位置，一切都在學習中。對手是調皮的怪獸隊。`;
     const sharedRules = `不提及球場位置（如控球後衛、中鋒等）或 RPG 職業（如法師、戰士等），兩人目前是 Noob 初心者，無任何職業設定。正面鼓勵 Sheldon 與 Leonard，怪物則詼諧可愛。輸出純文字繁體中文，不要有任何 Markdown。`;
 
     // 正式戰況 = 有實際得分或犯規的事件
-    const formalTypes = ['TASK_APPROVE', 'TASK_EXPIRED', 'FOUL_CALLED'];
+    const formalTypes = ['TASK_APPROVE', 'AWESOME_MOVE', 'TASK_EXPIRED', 'FOUL_CALLED', 'MONSTER_AND1', 'MONSTER_RUN'];
     const formalLogs = targetLogs.filter(l => formalTypes.includes(l.Action_Type));
     const hasFormalEvents = formalLogs.length > 0;
 
@@ -448,7 +468,7 @@ function generateMatchReport(isWeekly = false) {
     if (isWeekly) {
         prompt = `你現在是「魔幻籃球聯盟」的專屬體育記者。請撰寫一篇【聯盟週報・賽事回顧】。
 ${background}
-本週比分 - SL 隊：${teamScore} vs 怪獸：${monsterScore}。
+本週總分 - SL 隊：${teamScore} vs 怪獸：${monsterScore}。
 本週日誌精華：\n${logSummary}\n
 要求：篇幅約 500 字。完整回顧本週每天的重要事件與成長亮點，有起承轉合，像一篇真正的賽季週刊。生動幽默，融入 RPG 魔幻世界觀。${sharedRules}`;
     } else if (!hasFormalEvents) {
@@ -461,14 +481,16 @@ ${background}
         } catch(e) {}
         prompt = `你現在是「魔幻籃球聯盟」的專屬體育記者。今天沒有任何正式賽事，請根據以下球場花絮，撰寫一篇【賽事快報・休館日特輯】。
 ${background}
+目前總分 - SL 隊：${teamScore} vs 怪獸：${monsterScore}。
 今日花絮素材：\n${flavorRaw || "球場一片安靜，連史萊姆都在打盹。"}\n
-要求：篇幅約 250 字。用輕鬆幽默的語氣描繪球員備戰的日常，不要虛構正式比賽，但要有趣。${sharedRules}`;
+要求：篇幅約 250 字。用輕鬆幽默的語氣描繪球員備戰的日常，提及目前的總分戰況，不要虛構正式比賽，但要有趣。${sharedRules}`;
     } else {
         prompt = `你現在是「魔幻籃球聯盟」的專屬體育記者。請撰寫一篇【賽事快報】。
 ${background}
-今日比分 - SL 隊：${teamScore} vs 怪獸：${monsterScore}。
-今日日誌：\n${logSummary}\n
-要求：篇幅約 250 字，生動有力，涵蓋今日重要事件。生動幽默，融入 RPG 魔幻世界觀。${sharedRules}`;
+昨日得分 - SL 隊：${dailyTeamPoints} vs 怪獸：${dailyMonsterPoints}。
+目前總分 - SL 隊：${teamScore} vs 怪獸：${monsterScore}。
+昨日日誌：\n${logSummary}\n
+要求：篇幅約 250 字，生動有力，著重在前一天的事件與得分，然後帶到現在的總分數。生動幽默，融入 RPG 魔幻世界觀。${sharedRules}`;
     }
 
     try {
@@ -552,13 +574,21 @@ function processExpiredTasks(ss) {
  */
 function addScore(ss, team, points) {
     const key = team === "Monster" ? "Monster_Score" : "Team_Score";
-    const current = parseInt(getGlobalState(ss, key)) || 0;
-    updateGlobalState(ss, key, (current + points).toString());
-    
-    // 同步更新週分數
     const weekKey = team === "Monster" ? "Weekly_Monster_Score" : "Weekly_Team_Score";
-    const weekCurrent = parseInt(getGlobalState(ss, weekKey)) || 0;
-    updateGlobalState(ss, weekKey, (weekCurrent + points).toString());
+    
+    const sheet = ss.getSheetByName("Global_State");
+    const data = sheet.getDataRange().getValues();
+    
+    // 效能優化：一次讀取，兩次寫入 (減少兩次 getDataRange 呼叫)
+    for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === key) {
+            const current = parseInt(data[i][1]) || 0;
+            sheet.getRange(i + 1, 2).setValue((current + points).toString());
+        } else if (data[i][0] === weekKey) {
+            const weekCurrent = parseInt(data[i][1]) || 0;
+            sheet.getRange(i + 1, 2).setValue((weekCurrent + points).toString());
+        }
+    }
 }
 
 /**
@@ -613,30 +643,13 @@ function callGemini_(prompt) {
  * 成功回傳字串，失敗回傳 null（讓前端 fallback 到 template）
  */
 function generateBroadcast_(type, context) {
+    // 效能優化：即時操作 (核准/犯規/逾期) 不再等待 Gemini 生成，改由前端直接套用模板
+    if (['TASK_APPROVE', 'FOUL_CALLED', 'TASK_EXPIRED'].includes(type)) {
+        return null;
+    }
+
     let prompt = '';
-    if (type === 'TASK_APPROVE') {
-        const { playerName, taskName, difficulty, isHit, points, quality } = context;
-        const diffLabel = { S: '傳說', A: '史詩', B: '稀有', C: '普通', D: '容易', E: '超簡單' }[difficulty] || difficulty;
-        const outcomeStr = isHit ? `命中得 ${points} 分` : '未命中打鐵';
-        const qualityHint = quality >= 99 ? '神乎其技、會心一投的超水準發揮'
-            : quality >= 95 ? '手感絕佳、狀態火熱的高水準發揮'
-            : quality >= 90 ? '穩定紮實、令人滿意的表現'
-            : quality >= 80 ? '中規中矩、還算過得去的水準'
-            : '勉強出手、有點搖晃的掙扎發揮';
-        prompt = `你是魔幻籃球聯盟的搞笑主播，請用繁體中文寫一句廣播詞，25~40字，必須含一個emoji。
-情境：菜鳥初心者${playerName}完成任務「${taskName}」（${diffLabel}難度），這次是${qualityHint}，結果${outcomeStr}。
-要求：必須在廣播詞中提到任務「${taskName}」，並明確說出結果（${outcomeStr}）；用隱喻或氛圍詞暗示品質高低（不要說出品質百分比數字）；誇張好笑，善用籃球術語，不提球場位置或 RPG 職業，只輸出那一句話，不輸出任何其他文字。`;
-    } else if (type === 'FOUL_CALLED') {
-        const { targetName, points } = context;
-        prompt = `你是家庭籃球聯盟的搞笑主播，請用繁體中文寫一句廣播詞，25~35字，必須含一個emoji。
-情境：${targetName}被吹技術犯規，對手得${points}分。
-要求：誇張好笑，善用籃球術語，只輸出那一句話，不輸出任何其他文字。`;
-    } else if (type === 'TASK_EXPIRED') {
-        const { taskName, points } = context;
-        prompt = `你是家庭籃球聯盟的搞笑主播，請用繁體中文寫一句廣播詞，25~35字，必須含一個emoji。
-情境：任務「${taskName}」超時未完成，怪獸隊發動快攻得${points}分。
-要求：誇張好笑，善用籃球術語，只輸出那一句話，不輸出任何其他文字。`;
-    } else if (type === 'DAILY_FLAVOR') {
+    if (type === 'DAILY_FLAVOR') {
         prompt = `你是魔幻籃球聯盟的搞笑場邊播報員，請用繁體中文生成15條球場花絮。
 每條25~35字，必須含一個emoji，以🏟️開頭。
 場景：Sheldon（11歲）與 Leonard（8歲）是尚未有固定球場位置的菜鳥初心者（Phase 1 Noob），對手是史萊姆、灰塵怪等可愛怪物。花絮要體現他們的成長與努力，不要提球場位置或 RPG 職業。
@@ -688,6 +701,49 @@ function testGeminiKey() {
         }
     }
     Logger.log("❌ 所有模型都無可用額度，請確認 Key 是否為新 Project 的 Key");
+}
+
+/**
+ * [排程/手動] 每週生成一次 AI 廣播模板並存入 Global_State
+ */
+function generateWeeklyBroadcastTemplates() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    const background = `背景設定：Sheldon（11歲）與 Leonard（8歲）是聯盟的 Noob 初心者球員，尚未擔任任何固定的籃球場上位置。對手是調皮的怪獸隊。`;
+    const rule = `誇張好笑，善用籃球術語與 RPG 魔幻隱喻，不提球場位置或職業。每句 25~40 字，必須含一個 emoji。`;
+
+    const promptScore = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員進球得分」的廣播詞。\n${background}\n${rule}
+格式：每行一句，請務必使用 {actor} 代表球員名字，使用 {points} 代表得分數。例如：🏀 完美！{actor} 施展出火球術般的投籃，拿下 {points} 分！
+只輸出那15句，不要其他文字。`;
+    
+    const promptMiss = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員投籃沒進(打鐵/失誤)」的廣播詞。\n${background}\n${rule}
+格式：每行一句，請務必使用 {actor} 代表球員名字。例如：💥 哎呀！{actor} 的球竟然卡在籃板上，史萊姆都在偷笑！
+只輸出那15句，不要其他文字。`;
+
+    const promptFoul = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員被吹判技術犯規，導致對手得分」的廣播詞。\n${background}\n${rule}
+格式：每行一句，請務必使用 {target} 代表犯規者名字，使用 {points} 代表對手得分數。例如：🚨 逼逼！{target} 偷拔怪獸的毛，技術犯規！對手白賺 {points} 分！
+只輸出那15句，不要其他文字。`;
+
+    const parseAndSave = (prompt, key) => {
+        try {
+            const text = callGemini_(prompt);
+            if (text && !text.includes('額度') && !text.includes('API Key') && !text.includes('明天再來')) {
+                // 過濾並確保有包含變數標籤
+                const lines = text.split('\n').map(s => s.trim()).filter(s => s.length > 5 && s.includes('{'));
+                if (lines.length >= 5) {
+                    updateGlobalState(ss, key, JSON.stringify(lines.slice(0, 15)));
+                }
+            }
+        } catch (e) {
+            console.error("生成每週模板失敗", key, e);
+        }
+    };
+
+    parseAndSave(promptScore, "Weekly_Score_Templates");
+    parseAndSave(promptMiss, "Weekly_Miss_Templates");
+    parseAndSave(promptFoul, "Weekly_Foul_Templates");
+    
+    Logger.log("✅ 每週 AI 廣播模板生成完成！");
 }
 
 /**
@@ -919,22 +975,31 @@ function doPost(e) {
                             const accountType = userRows[u][2];
                             if (accountType !== 'Player') continue; // GM 不拿 EXP/Gold
                             if (!assignees.includes(uid) && !assignees.includes('TEAM')) continue;
+                            const currentLevel = parseInt(userRows[u][4]) || 1;
                             const currentExp = parseInt(userRows[u][5]) || 0;
                             const currentGold = parseInt(userRows[u][6]) || 0;
+                            const currentSp = parseInt(userRows[u][7]) || 0;
+                            let newMaxSp = parseInt(userRows[u][8]) || 0;
+
                             const newExp = currentExp + expReward;
-                            usersSheet.getRange(u + 1, 6).setValue(newExp);
-                            usersSheet.getRange(u + 1, 7).setValue(currentGold + goldReward);
-                            // Level-up check
-                            const currentLevel = parseInt(userRows[u][4]) || 1;
                             let newLevel = currentLevel;
+                            
                             while (newLevel < 30 && getExpForLevel_(newLevel + 1) !== undefined && newExp >= getExpForLevel_(newLevel + 1)) {
                                 newLevel++;
                             }
+
+                            let isLevelUp = false;
                             if (newLevel > currentLevel) {
-                                usersSheet.getRange(u + 1, 5).setValue(newLevel);
-                                // SP Max 隨等級提升：+1/+2 交替，公式 = floor(3*(Lv-1)/2)
-                                const newMaxSp = getMaxSpForLevel_(newLevel);
-                                usersSheet.getRange(u + 1, 9).setValue(newMaxSp);
+                                newMaxSp = getMaxSpForLevel_(newLevel);
+                                isLevelUp = true;
+                            }
+
+                            // 效能優化：批次寫入 Level, EXP, Gold, Current_SP, Max_SP (Col 5 to 9)
+                            usersSheet.getRange(u + 1, 5, 1, 5).setValues([[
+                                newLevel, newExp, currentGold + goldReward, currentSp, newMaxSp
+                            ]]);
+
+                            if (isLevelUp) {
                                 safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, uid, "LEVEL_UP", JSON.stringify({ from: currentLevel, to: newLevel, totalExp: newExp, maxSp: newMaxSp })]);
                                 if (!returnPayload.levelUps) returnPayload.levelUps = [];
                                 returnPayload.levelUps.push({ userId: uid, name: userRows[u][1], from: currentLevel, to: newLevel, maxSp: newMaxSp });
@@ -1336,6 +1401,75 @@ function updateGlobalState(ss, key, val) {
             return;
         }
     }
+}
+
+/**
+ * [排程/自動] 滾動式封存舊日誌 (保留最近 14 天的資料)
+ * 將超過 14 天的日誌搬移到 Logs_Archive_YYYY_MM
+ */
+function archiveOldLogs() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const logsSheet = ss.getSheetByName("Logs");
+    if (!logsSheet) return;
+    
+    const data = logsSheet.getDataRange().getValues();
+    if (data.length <= 1) return; // 只有標題或空表
+    
+    const headers = data[0];
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 14); // 14天前
+    
+    const keepRows = [headers];
+    const archiveMap = {}; // 按 YYYY_MM 分類
+    
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const timestampStr = row[1];
+        if (!timestampStr) {
+            keepRows.push(row);
+            continue;
+        }
+        
+        const logDate = new Date(timestampStr);
+        if (logDate < cutoffDate) {
+            // 該被封存
+            const yyyy = logDate.getFullYear();
+            const mm = String(logDate.getMonth() + 1).padStart(2, '0');
+            const sheetName = `Logs_Archive_${yyyy}_${mm}`;
+            if (!archiveMap[sheetName]) archiveMap[sheetName] = [];
+            archiveMap[sheetName].push(row);
+        } else {
+            // 保留 (14 天內)
+            keepRows.push(row);
+        }
+    }
+    
+    const archiveKeys = Object.keys(archiveMap);
+    if (archiveKeys.length === 0) {
+        Logger.log("📦 本週無需要封存的舊日誌。");
+        return; 
+    }
+    
+    // 寫入對應的 Archive 表單
+    archiveKeys.forEach(sheetName => {
+        let archiveSheet = ss.getSheetByName(sheetName);
+        if (!archiveSheet) {
+            archiveSheet = ss.insertSheet(sheetName);
+            archiveSheet.appendRow(headers);
+            // 將表單移到最後面，保持整潔
+            ss.setActiveSheet(archiveSheet);
+            ss.moveActiveSheet(ss.getNumSheets());
+        }
+        const rowsToAppend = archiveMap[sheetName];
+        const startRow = archiveSheet.getLastRow() + 1;
+        archiveSheet.getRange(startRow, 1, rowsToAppend.length, headers.length).setValues(rowsToAppend);
+    });
+    
+    // 覆寫回主 Logs 表單
+    logsSheet.clearContents();
+    logsSheet.getRange(1, 1, keepRows.length, headers.length).setValues(keepRows);
+    
+    Logger.log(`📦 封存完成！共搬移了 ${data.length - keepRows.length} 筆舊日誌。保留了 ${keepRows.length - 1} 筆。`);
 }
 
 /**

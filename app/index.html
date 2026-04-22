@@ -947,6 +947,22 @@
       return Math.abs(hash);
     }
 
+    function getWeeklyTemplates(type) {
+      let key = '';
+      if (type === 'SCORE') key = 'Weekly_Score_Templates';
+      if (type === 'MISS') key = 'Weekly_Miss_Templates';
+      if (type === 'FOUL') key = 'Weekly_Foul_Templates';
+      
+      try {
+        const entry = (globalData.globalState || []).find(s => s.Key === key);
+        if (entry?.Value) {
+          const parsed = JSON.parse(entry.Value);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) { }
+      return null;
+    }
+
     function translateLog(log) {
       // log = [Log_ID, Timestamp, Season_ID, Actor_ID, Action_Type, Detail_JSON]
       let actor = globalData.users.find(u => u.User_ID === log[3])?.Name || log[3];
@@ -966,26 +982,33 @@
         let quality = parseInt(detail.quality) || 80;
         let tplList = [];
 
-        if (detail.isHit) {
-          if (quality < 80) tplList = SCORE_LOW;
-          else if (quality < 95) tplList = SCORE_MID;
-          else tplList = SCORE_HIGH;
+        const aiList = getWeeklyTemplates(detail.isHit ? 'SCORE' : 'MISS');
+        if (aiList && aiList.length > 0) {
+          tplList = aiList; // 優先使用每週 AI 生成的模板
         } else {
-          if (quality < 80) tplList = MISS_LOW;
-          else if (quality < 95) tplList = MISS_MID;
-          else tplList = MISS_HIGH;
+          // 備案：使用內建依照品質區分的模板
+          if (detail.isHit) {
+            if (quality < 80) tplList = SCORE_LOW;
+            else if (quality < 95) tplList = SCORE_MID;
+            else tplList = SCORE_HIGH;
+          } else {
+            if (quality < 80) tplList = MISS_LOW;
+            else if (quality < 95) tplList = MISS_MID;
+            else tplList = MISS_HIGH;
+          }
         }
 
         let tpl = tplList[hashIndex % tplList.length];
-        return tpl.replace('{actor}', subject).replace('{points}', detail.points || 0);
+        return tpl.replace(/\{actor\}/g, subject).replace(/\{points\}/g, detail.points || 0);
       }
       if (log[4] === 'FOUL_CALLED' || log[4] === 'MONSTER_AND1' || log[4] === 'MONSTER_RUN') {
         const goldInfo = (detail.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
         const goldSuffix = goldInfo ? ` | 💸 ${goldInfo}` : '';
         if (detail.broadcast) return detail.broadcast + goldSuffix;
         let target = detail.targetId === 'TEAM' ? '全隊' : (globalData.users.find(u => u.User_ID === detail.targetId)?.Name || detail.targetId);
-        let tpl = FOUL_TEMPLATES[hashIndex % FOUL_TEMPLATES.length];
-        return tpl.replace('{target}', target).replace('{points}', detail.addedPoints) + goldSuffix;
+        let tplList = getWeeklyTemplates('FOUL') || FOUL_TEMPLATES;
+        let tpl = tplList[hashIndex % tplList.length];
+        return tpl.replace(/\{target\}/g, target).replace(/\{points\}/g, detail.addedPoints) + goldSuffix;
       }
       if (log[4] === 'TASK_EXPIRED') {
         return detail.narrative || `⚠️ 任務「${detail.name}」已過期，怪獸隊得分！`;
