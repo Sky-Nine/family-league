@@ -143,6 +143,8 @@ function setupSheets() {
     ensureStateKey_(stateSheet, "Weekly_Score_Templates", "[]", "每週 AI 預生成的得分廣播模板");
     ensureStateKey_(stateSheet, "Weekly_Miss_Templates", "[]", "每週 AI 預生成的打鐵廣播模板");
     ensureStateKey_(stateSheet, "Weekly_Foul_Templates", "[]", "每週 AI 預生成的犯規廣播模板");
+    ensureStateKey_(stateSheet, "Weekly_Rescue_Templates", "[]", "每週 AI 預生成的補救核准廣播模板");
+    ensureStateKey_(stateSheet, "Weekly_Void_Templates", "[]", "每週 AI 預生成的作廢廣播模板");
 
     Logger.log("✅ setupSheets 完成（專業解耦遷移模式）");
 }
@@ -712,17 +714,25 @@ function generateWeeklyBroadcastTemplates() {
     const background = `背景設定：Sheldon（11歲）與 Leonard（8歲）是聯盟的 Noob 初心者球員，尚未擔任任何固定的籃球場上位置。對手是調皮的怪獸隊。`;
     const rule = `誇張好笑，善用籃球術語與 RPG 魔幻隱喻，不提球場位置或職業。每句 25~40 字，必須含一個 emoji。`;
 
-    const promptScore = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員進球得分」的廣播詞。\n${background}\n${rule}
+    const promptScore = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員進球得分」的廣播詞。\n${background}\n${rule}
 格式：每行一句，請務必使用 {actor} 代表球員名字，使用 {points} 代表得分數。例如：🏀 完美！{actor} 施展出火球術般的投籃，拿下 {points} 分！
-只輸出那15句，不要其他文字。`;
+只輸出那20句，不要其他文字。`;
     
-    const promptMiss = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員投籃沒進(打鐵/失誤)」的廣播詞。\n${background}\n${rule}
+    const promptMiss = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員投籃沒進(打鐵/失誤)」的廣播詞。\n${background}\n${rule}
 格式：每行一句，請務必使用 {actor} 代表球員名字。例如：💥 哎呀！{actor} 的球竟然卡在籃板上，史萊姆都在偷笑！
-只輸出那15句，不要其他文字。`;
+只輸出那20句，不要其他文字。`;
 
-    const promptFoul = `你是魔幻籃球聯盟的主播，請用繁體中文生成 15 句「球員被吹判技術犯規，導致對手得分」的廣播詞。\n${background}\n${rule}
+    const promptFoul = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員被吹判技術犯規，導致對手得分」的廣播詞。\n${background}\n${rule}
 格式：每行一句，請務必使用 {target} 代表犯規者名字，使用 {points} 代表對手得分數。例如：🚨 逼逼！{target} 偷拔怪獸的毛，技術犯規！對手白賺 {points} 分！
-只輸出那15句，不要其他文字。`;
+只輸出那20句，不要其他文字。`;
+
+    const promptRescue = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「GM 裁判啟動時光機，把已判失敗的任務補救核准回來，怪獸吐出分數」的廣播詞。\n${background}\n${rule}
+格式：每行一句，請務必使用 {task} 代表任務名稱，使用 {points} 代表怪獸被扣回的分數。例如：🕰️ 時光機啟動！裁判翻案了！{task} 補救核准成功，怪獸被沒收 {points} 分！
+只輸出那20句，不要其他文字。`;
+
+    const promptVoid = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「GM 裁判宣布某任務從頭到尾就不該存在，直接作廢，怪獸吐出分數」的廣播詞。\n${background}\n${rule}
+格式：每行一句，請務必使用 {task} 代表任務名稱，使用 {points} 代表怪獸被扣回的分數。例如：🗑️ 無效！裁判宣布 {task} 根本是個假任務！怪獸你把 {points} 分吐出來！
+只輸出那20句，不要其他文字。`;
 
     const parseAndSave = (prompt, key) => {
         try {
@@ -731,7 +741,7 @@ function generateWeeklyBroadcastTemplates() {
                 // 過濾並確保有包含變數標籤
                 const lines = text.split('\n').map(s => s.trim()).filter(s => s.length > 5 && s.includes('{'));
                 if (lines.length >= 5) {
-                    updateGlobalState(ss, key, JSON.stringify(lines.slice(0, 15)));
+                    updateGlobalState(ss, key, JSON.stringify(lines.slice(0, 20)));
                 }
             }
         } catch (e) {
@@ -742,6 +752,8 @@ function generateWeeklyBroadcastTemplates() {
     parseAndSave(promptScore, "Weekly_Score_Templates");
     parseAndSave(promptMiss, "Weekly_Miss_Templates");
     parseAndSave(promptFoul, "Weekly_Foul_Templates");
+    parseAndSave(promptRescue, "Weekly_Rescue_Templates");
+    parseAndSave(promptVoid, "Weekly_Void_Templates");
     
     Logger.log("✅ 每週 AI 廣播模板生成完成！");
 }
@@ -958,9 +970,22 @@ function doPost(e) {
                 const rows = tasksSheet.getDataRange().getValues();
                 for (let i = 1; i < rows.length; i++) {
                     if (rows[i][0] === data.taskId) {
-                        if (rows[i][8] !== "Reviewing") {
-                            throw new Error("INVALID_STATE: Task is not in Reviewing state.");
+                        const previousStatus = rows[i][8];
+                        if (!["Reviewing", "Pending", "Failed"].includes(previousStatus)) {
+                            throw new Error("INVALID_STATE: Task cannot be approved in current state.");
                         }
+
+                        if (previousStatus === "Failed") {
+                            // 扣除怪獸因逾期拿到的分數
+                            let penaltyPoints = 2; // 預設 2 分
+                            const diff = (rows[i][5] || 'C').toUpperCase();
+                            if (diff === 'E') penaltyPoints = 1;
+                            else if (['A', 'S'].includes(diff)) penaltyPoints = 3;
+                            
+                            addScore(ss, "Monster", -penaltyPoints);
+                            safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, data.actorId, "RESCUE_TASK", JSON.stringify({ taskId: data.taskId, taskName: rows[i][3], points: penaltyPoints })]);
+                        }
+
                         tasksSheet.getRange(i + 1, 9).setValue("Completed");
 
                         const expReward = parseInt(rows[i][6]) || 0;
@@ -1035,6 +1060,7 @@ function doPost(e) {
                         const playerNames = assigneeStr === 'TEAM'
                             ? '全隊'
                             : assignees.map(aid => usersData.find(u => u.User_ID === aid)?.Name || aid).join('、');
+
                         const broadcast = generateBroadcast_('TASK_APPROVE', { playerName: playerNames, taskName, difficulty, isHit, points: pointsGained, quality });
                         const approveDetail = { taskId: data.taskId, exp: expReward, gold: goldReward, isHit, points: pointsGained };
                         if (broadcast) approveDetail.broadcast = broadcast;
@@ -1091,15 +1117,31 @@ function doPost(e) {
             }
 
             // 動作：家長強制刪除任務 (Pending/Reviewing/Failed -> Deleted)
+            // 動作：作廢任務 (Pending/Reviewing/Failed -> Deleted)
+            // 若任務原始狀態是 Failed，自動將怪獸因逾期得到的分數扮回
             if (data.action === "cancelTask") {
                 const rows = tasksSheet.getDataRange().getValues();
                 for (let i = 1; i < rows.length; i++) {
                     if (rows[i][0] === data.taskId) {
-                        if (!["Pending", "Reviewing", "Failed"].includes(rows[i][8])) {
-                            throw new Error("INVALID_STATE: Task cannot be deleted in current state.");
+                        const prevStatus = rows[i][8];
+                        if (!["Pending", "Reviewing", "Failed"].includes(prevStatus)) {
+                            throw new Error("INVALID_STATE: Task cannot be voided in current state.");
                         }
+
+                        if (prevStatus === "Failed") {
+                            // 作廢一個已失敗的任務：將怪獸得分扮回
+                            let penaltyPoints = 2;
+                            const diff = (rows[i][5] || 'C').toUpperCase();
+                            if (diff === 'E') penaltyPoints = 1;
+                            else if (['A', 'S'].includes(diff)) penaltyPoints = 3;
+                            
+                            addScore(ss, "Monster", -penaltyPoints);
+                            safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, data.actorId, "TASK_VOID", JSON.stringify({ taskId: data.taskId, taskName: rows[i][3], points: penaltyPoints })]);
+                        } else {
+                            safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, data.actorId, "TASK_CANCEL", JSON.stringify({ taskId: data.taskId })]);
+                        }
+
                         tasksSheet.getRange(i + 1, 9).setValue("Deleted");
-                        safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, data.actorId, "TASK_CANCEL", JSON.stringify({ taskId: data.taskId })]);
                         break;
                     }
                 }

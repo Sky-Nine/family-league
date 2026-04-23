@@ -953,6 +953,9 @@
       if (type === 'MISS') key = 'Weekly_Miss_Templates';
       if (type === 'FOUL') key = 'Weekly_Foul_Templates';
       
+      if (type === 'RESCUE') key = 'Weekly_Rescue_Templates';
+      if (type === 'VOID') key = 'Weekly_Void_Templates';
+      
       try {
         const entry = (globalData.globalState || []).find(s => s.Key === key);
         if (entry?.Value) {
@@ -1020,6 +1023,24 @@
       if (log[4] === 'REDEMPTION_APPROVED') {
         const target = globalData.users.find(u => u.User_ID === detail.playerId)?.Name || detail.playerId;
         return `🛒 教練核准了 ${escapeHTML(target)} 兌換【${escapeHTML(detail.itemName)}】！`;
+      }
+      if (log[4] === 'RESCUE_TASK') {
+        const taskName = detail.taskName || detail.taskId || '任務';
+        const tplList = getWeeklyTemplates('RESCUE');
+        if (tplList && tplList.length > 0) {
+          const tpl = tplList[hashIndex % tplList.length];
+          return tpl.replace(/\{task\}/g, taskName).replace(/\{points\}/g, detail.points || 0);
+        }
+        return `🕰️ 裁判翻案！「${escapeHTML(taskName)}」補救核准，怪獸被沒收 ${detail.points || 0} 分！`;
+      }
+      if (log[4] === 'TASK_VOID') {
+        const taskName = detail.taskName || detail.taskId || '任務';
+        const tplList = getWeeklyTemplates('VOID');
+        if (tplList && tplList.length > 0) {
+          const tpl = tplList[hashIndex % tplList.length];
+          return tpl.replace(/\{task\}/g, taskName).replace(/\{points\}/g, detail.points || 0);
+        }
+        return `🗑️ 作廢！「${escapeHTML(taskName)}」判為無效任務，怪獸吐出 ${detail.points || 0} 分！`;
       }
       if (log[4] === 'REDEMPTION_REJECTED') {
         const target = globalData.users.find(u => u.User_ID === detail.playerId)?.Name || detail.playerId;
@@ -1576,9 +1597,25 @@
               let statusLabel = t.Status === 'Reviewing' ? '審核中' : t.Status === 'Failed' ? '失敗' : (submitted ? '已提交' : '進行中');
               let statusColor = t.Status === 'Reviewing' ? 'text-yellow-400' : t.Status === 'Failed' ? 'text-red-500' : (submitted ? 'text-green-400' : 'text-blue-300');
 
+              let rescueBtn = '';
+              // 依據討論，暫時只實裝 Failed 的 UI 按鈕 (隱藏 Pending 的按鈕)
+              if (t.Status === 'Failed') {
+                rescueBtn = `<button onclick="forceApproveTask('${t.Task_ID}')" class="absolute -top-2 -left-2 bg-green-900 hover:bg-green-800 text-white text-xs px-2 py-1 pixel-border border-green-950 font-bold z-10 shadow-lg shadow-black">補救✅</button>`;
+              }
+
+              const isFailed = t.Status === 'Failed';
+              const cancelBtnStyle = isFailed
+                ? 'bg-gray-700 hover:bg-gray-600 border-gray-500'
+                : 'bg-red-900 hover:bg-red-800 border-red-950';
+              const cancelBtnLabel = isFailed ? '作廢🗑️' : '刪除';
+              const cancelConfirm = isFailed
+                ? `if(!confirm('確定要作廢此任務嗎？（將自動扣回怪獸隊因逾期得到的分數）')) return;`
+                : `if(!confirm('確定要刪除此任務嗎？')) return;`;
+
               return `
                 <div class="relative bg-gray-700 p-3 pixel-border text-center flex flex-col justify-center">
-                    <button onclick="cancelTask('${t.Task_ID}')" class="absolute -top-2 -right-2 bg-red-900 hover:bg-red-800 text-white text-xs px-2 py-1 pixel-border border-red-950 font-bold z-10 shadow-lg shadow-black">刪除</button>
+                    ${rescueBtn}
+                    <button onclick="${cancelConfirm} cancelTask('${t.Task_ID}')" class="absolute -top-2 -right-2 ${cancelBtnStyle} text-white text-xs px-2 py-1 pixel-border font-bold z-10 shadow-lg shadow-black">${cancelBtnLabel}</button>
                     <div class="text-base text-white mb-2 flex items-center justify-center gap-1">
                         <span class="text-yellow-500 font-bold">[${t.Difficulty}]</span>
                         <span class="truncate block max-w-[120px]" title="${escapeHTML(t.Task_Name)}">${escapeHTML(t.Task_Name)}</span>
@@ -1789,6 +1826,15 @@
     function submitTask(taskId) { postAction({ action: "submitTask", taskId: taskId, actorId: currentUser.User_ID }); }
     function undoTask(taskId) { postAction({ action: "undoTask", taskId: taskId, actorId: currentUser.User_ID }); }
     function approveTask(taskId, quality) { postAction({ action: "approveTask", taskId: taskId, quality: quality, actorId: currentUser.User_ID }); }
+    
+    function forceApproveTask(taskId) {
+        if (confirm("確定要強制補救核准此任務嗎？（若任務已失敗，將會自動扣回怪獸隊的分數）")) {
+            let q = prompt("請輸入表現品質 (60=D, 80=C, 90=B, 95=A, 99=S)", "80");
+            if (q === null) return;
+            q = parseInt(q) || 80;
+            postAction({ action: "approveTask", taskId: taskId, quality: q, actorId: currentUser.User_ID });
+        }
+    }
     function rejectTask(taskId) { postAction({ action: "rejectTask", taskId: taskId, actorId: currentUser.User_ID }); }
 
     function cancelTask(taskId) {
