@@ -134,6 +134,14 @@ function setupSheets() {
     // 11. Redemptions (Shop購買待審核佇列)
     ensureSheet_(ss, "Redemptions", ["Redemption_ID", "Player_ID", "Item_Name", "Cost", "Status", "Season_ID", "Created_At", "Resolved_At"]);
 
+    // 12. Items_Dict (道具主目錄)
+    ensureSheet_(ss, "Items_Dict",
+        ["Item_ID", "Name", "Type", "Max_Qty", "Dupe_Gold", "Rarity", "Description", "Asset_Key", "Category"]);
+
+    // 13. Inventory (玩家背包)
+    ensureSheet_(ss, "Inventory",
+        ["Inventory_ID", "Player_ID", "Item_ID", "Qty", "Acquired_Date"]);
+
     // 10. Weekly score keys (same Global_State sheet from step 2)
     ensureStateKey_(stateSheet, "Weekly_Team_Score", "0", "本週我方總分");
     ensureStateKey_(stateSheet, "Weekly_Monster_Score", "0", "本週怪獸總分");
@@ -803,6 +811,8 @@ function doGet(e) {
             news: getSheetDataAsJson(ss.getSheetByName("News")),
             dailyTemplates: getSheetDataAsJson(ss.getSheetByName("Daily_Templates")),
             logs: dailyLogs,
+            itemsDict: getSheetDataAsJson(ss.getSheetByName("Items_Dict")),
+            inventory: getSheetDataAsJson(ss.getSheetByName("Inventory")),
             timestamp: now.toISOString()
         };
 
