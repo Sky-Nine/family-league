@@ -715,15 +715,19 @@ function generateWeeklyBroadcastTemplates() {
     const rule = `誇張好笑，善用籃球術語與 RPG 魔幻隱喻，不提球場位置或職業。每句 25~40 字，必須含一個 emoji。`;
 
     const promptScore = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員進球得分」的廣播詞。\n${background}\n${rule}
-格式：每行一句，請務必使用 {actor} 代表球員名字，使用 {points} 代表得分數。例如：🏀 完美！{actor} 施展出火球術般的投籃，拿下 {points} 分！
+重要規則：輸出中必須保留以下佔位符的原始文字，不可替換成實際內容：{actor}、{task}、{points}。這些會由程式在執行時自動填入。
+格式：每行一句，句中必須含有 {actor}（球員）、{task}（任務名）、{points}（得分數）這三個佔位符原文。例如：🏀 完美！{actor} 完成了「{task}」，這記漂亮的出手拿下 {points} 分！
 只輸出那20句，不要其他文字。`;
-    
-    const promptMiss = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員投籃沒進(打鐵/失誤)」的廣播詞。\n${background}\n${rule}
-格式：每行一句，請務必使用 {actor} 代表球員名字。例如：💥 哎呀！{actor} 的球竟然卡在籃板上，史萊姆都在偷笑！
+
+    const promptMiss = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員完成了家務或學習任務後投籃沒進(打鐵/失誤)」的廣播詞。\n${background}\n${rule}
+背景：{task} 是球員剛完成的家務或學習任務（例如「洗碗」、「寫功課」、「整理房間」），不是籃球動作名稱。球員因完成任務而獲得投籃機會，但這次投籃失誤了。
+重要規則：輸出中必須保留以下佔位符的原始文字，不可替換成實際內容：{actor}、{task}。這些會由程式在執行時自動填入。絕對不可把 {task} 換成任何文字。
+格式：每行一句，句中必須同時出現 {actor} 和 {task} 這兩個佔位符原文。例如：💥 哎呀！{actor} 剛完成了「{task}」，這顆求勝心切的投籃卻打鐵了，史萊姆笑到在地上打滾！
 只輸出那20句，不要其他文字。`;
 
     const promptFoul = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「球員被吹判技術犯規，導致對手得分」的廣播詞。\n${background}\n${rule}
-格式：每行一句，請務必使用 {target} 代表犯規者名字，使用 {points} 代表對手得分數。例如：🚨 逼逼！{target} 偷拔怪獸的毛，技術犯規！對手白賺 {points} 分！
+重要規則：輸出中必須保留以下佔位符的原始文字，不可替換成實際內容：{target}、{points}。這些會由程式在執行時自動填入。
+格式：每行一句，句中必須含有 {target}（犯規者）、{points}（對手得分）這兩個佔位符原文。例如：🚨 逼逼！{target} 偷拔怪獸的毛，技術犯規！對手白賺 {points} 分！
 只輸出那20句，不要其他文字。`;
 
     const promptRescue = `你是魔幻籃球聯盟的主播，請用繁體中文生成 20 句「GM 裁判啟動時光機，把已判失敗的任務補救核准回來，怪獸吐出分數」的廣播詞。\n${background}\n${rule}
@@ -734,14 +738,19 @@ function generateWeeklyBroadcastTemplates() {
 格式：每行一句，請務必使用 {task} 代表任務名稱，使用 {points} 代表怪獸被扣回的分數。例如：🗑️ 無效！裁判宣布 {task} 根本是個假任務！怪獸你把 {points} 分吐出來！
 只輸出那20句，不要其他文字。`;
 
-    const parseAndSave = (prompt, key) => {
+    const parseAndSave = (prompt, key, requiredVars) => {
         try {
             const text = callGemini_(prompt);
             if (text && !text.includes('額度') && !text.includes('API Key') && !text.includes('明天再來')) {
-                // 過濾並確保有包含變數標籤
-                const lines = text.split('\n').map(s => s.trim()).filter(s => s.length > 5 && s.includes('{'));
+                const lines = text.split('\n').map(s => s.trim()).filter(s => {
+                    if (s.length <= 5) return false;
+                    return requiredVars.every(v => s.includes(v));
+                });
                 if (lines.length >= 5) {
                     updateGlobalState(ss, key, JSON.stringify(lines.slice(0, 20)));
+                    Logger.log(`✅ ${key}：儲存 ${lines.length} 條模板。預覽：${lines[0]}`);
+                } else {
+                    Logger.log(`❌ ${key}：有效模板不足 (${lines.length} 條，需含 ${requiredVars.join('、')})，未儲存。AI 原始輸出前300字：${text.substring(0, 300)}`);
                 }
             }
         } catch (e) {
@@ -749,12 +758,12 @@ function generateWeeklyBroadcastTemplates() {
         }
     };
 
-    parseAndSave(promptScore, "Weekly_Score_Templates");
-    parseAndSave(promptMiss, "Weekly_Miss_Templates");
-    parseAndSave(promptFoul, "Weekly_Foul_Templates");
-    parseAndSave(promptRescue, "Weekly_Rescue_Templates");
-    parseAndSave(promptVoid, "Weekly_Void_Templates");
-    
+    parseAndSave(promptScore,   "Weekly_Score_Templates",   ['{actor}', '{task}', '{points}']);
+    parseAndSave(promptMiss,    "Weekly_Miss_Templates",    ['{actor}', '{task}']);
+    parseAndSave(promptFoul,    "Weekly_Foul_Templates",    ['{target}', '{points}']);
+    parseAndSave(promptRescue,  "Weekly_Rescue_Templates",  ['{task}', '{points}']);
+    parseAndSave(promptVoid,    "Weekly_Void_Templates",    ['{task}', '{points}']);
+
     Logger.log("✅ 每週 AI 廣播模板生成完成！");
 }
 
@@ -813,7 +822,10 @@ function doGet(e) {
     // 🏠 預設行為：渲染網頁 UI (使用 Template 動態注入 API 網址)
     const template = HtmlService.createTemplateFromFile('app/index');
     template.webappUrl = ScriptApp.getService().getUrl();
-    template.assetBase = 'https://cdn.jsdelivr.net/gh/Sky-Nine/family-league@main/';
+    const isDev = ScriptApp.getScriptId() === '1JYSmBmeJAvCSerNSb8uLyfIbqM5zJjrGqUHaIN3x4Seb83u6wXhVIpG4';
+    template.assetBase = isDev
+        ? 'https://cdn.jsdelivr.net/gh/Sky-Nine/family-league@dev/'
+        : 'https://cdn.jsdelivr.net/gh/Sky-Nine/family-league@main/';
     return template.evaluate()
         .setTitle('魔幻籃球聯盟 - Noob Camp' + (e.parameter.debug ? ' [DEBUG MODE]' : ''))
         .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -1062,7 +1074,7 @@ function doPost(e) {
                             : assignees.map(aid => usersData.find(u => u.User_ID === aid)?.Name || aid).join('、');
 
                         const broadcast = generateBroadcast_('TASK_APPROVE', { playerName: playerNames, taskName, difficulty, isHit, points: pointsGained, quality });
-                        const approveDetail = { taskId: data.taskId, exp: expReward, gold: goldReward, isHit, points: pointsGained };
+                        const approveDetail = { taskId: data.taskId, playerName: playerNames, taskName, exp: expReward, gold: goldReward, isHit, points: pointsGained };
                         if (broadcast) approveDetail.broadcast = broadcast;
 
                         safeAppendRow(logsSheet, [Utilities.getUuid(), new Date().toISOString(), seasonId, data.actorId, flavorLabel, JSON.stringify(approveDetail)]);

@@ -342,6 +342,7 @@
 
   <div id="mainDashboard" class="hidden w-full max-w-2xl flex flex-col gap-6">
 
+    <!-- PROD-ONLY -->
     <div class="flex gap-1 mb-2 text-sm md:text-base">
       <button onclick="switchTab('quests')" id="tab-quests"
         class="flex-1 bg-blue-700 py-3 text-white pixel-border opacity-100">QUESTS</button>
@@ -352,6 +353,25 @@
       <button onclick="switchTab('shop')" id="tab-shop"
         class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50 text-yellow-500">SHOP</button>
     </div>
+    <!-- /PROD-ONLY -->
+    <!-- DEV-ONLY -->
+    <div class="flex flex-col gap-1 mb-2 text-sm md:text-base">
+      <div class="flex gap-1">
+        <button onclick="switchTab('quests')" id="tab-quests"
+          class="flex-1 bg-blue-700 py-3 text-white pixel-border opacity-100">QUESTS</button>
+        <button onclick="switchTab('stats')" id="tab-stats"
+          class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">STATUS</button>
+        <button onclick="switchTab('bag')" id="tab-bag"
+          class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">BAG</button>
+        <button onclick="switchTab('shop')" id="tab-shop"
+          class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50 text-yellow-500">SHOP</button>
+      </div>
+      <div class="flex gap-1">
+        <button onclick="switchTab('arena')" id="tab-arena"
+          class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">⚔️ ARENA</button>
+      </div>
+    </div>
+    <!-- /DEV-ONLY -->
 
     <div id="view-arena" class="hidden flex flex-col gap-6">
 
@@ -585,7 +605,39 @@
         </div>
       </div>
     </div>
+
+    <!-- DEV-ONLY -->
+    <div id="view-bag" class="hidden flex-col gap-6">
+      <div class="bg-gray-800 p-6 pixel-border-blue min-h-[300px]">
+        <h2 class="text-2xl text-yellow-400 mb-6">背包 (BAG)</h2>
+        <p class="text-gray-400 text-center mt-8">— 施工中 —</p>
+      </div>
+    </div>
+    <!-- /DEV-ONLY -->
+
   </div>
+
+  <!-- DEV-ONLY -->
+  <div id="dexCardModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+       onclick="this.classList.add('hidden')">
+    <div class="bg-gray-800 pixel-border border-purple-600 p-6 max-w-sm w-full mx-4 flex flex-col gap-4"
+         onclick="event.stopPropagation()">
+      <div class="flex justify-between items-start">
+        <div id="dexCardName" class="text-xl text-white font-bold"></div>
+        <button onclick="document.getElementById('dexCardModal').classList.add('hidden')"
+                class="text-gray-400 hover:text-white text-xl ml-4">✕</button>
+      </div>
+      <div class="w-full aspect-square bg-gray-900 flex items-center justify-center overflow-hidden">
+        <img id="dexCardImg" src="" class="w-full h-full object-contain hidden">
+        <div id="dexCardImgPlaceholder" class="text-gray-600 text-6xl">🃏</div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span class="text-purple-300 text-xs uppercase" id="dexCardRarity"></span>
+      </div>
+      <div id="dexCardDesc" class="text-gray-300 text-sm leading-relaxed"></div>
+    </div>
+  </div>
+  <!-- /DEV-ONLY -->
 
   <div id="toast"
     class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 pixel-border hidden transition-opacity z-50 text-lg uppercase">
@@ -647,7 +699,7 @@
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
-    let globalData = { users: [], tasks: [], shopItems: [], redemptions: [] };
+    let globalData = { users: [], tasks: [], shopItems: [], redemptions: [], itemsDict: [], inventory: [] };
     let currentUser = null;
     let editingTemplateIndex = -1;
 
@@ -776,20 +828,29 @@
     }
 
     function switchTab(tabName) {
-      ['quests', 'arena', 'stats', 'shop'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).classList.replace('bg-blue-700', 'bg-gray-700');
-        document.getElementById(`tab-${t}`).classList.replace('opacity-100', 'opacity-50');
-        document.getElementById(`tab-${t}`).classList.replace('text-white', 'text-gray-400');
+      ['quests', 'arena', 'stats', 'shop', 'bag'].forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const tab = document.getElementById(`tab-${t}`);
+        if (!view || !tab) return;
+        view.classList.add('hidden');
+        tab.classList.replace('bg-blue-700', 'bg-gray-700');
+        tab.classList.replace('opacity-100', 'opacity-50');
+        tab.classList.replace('text-white', 'text-gray-400');
       });
-      document.getElementById(`view-${tabName}`).classList.remove('hidden');
-      document.getElementById(`tab-${tabName}`).classList.replace('bg-gray-700', 'bg-blue-700');
-      document.getElementById(`tab-${tabName}`).classList.replace('opacity-50', 'opacity-100');
-      document.getElementById(`tab-${tabName}`).classList.replace('text-gray-400', 'text-white');
+      const activeView = document.getElementById(`view-${tabName}`);
+      const activeTab = document.getElementById(`tab-${tabName}`);
+      if (!activeView || !activeTab) return;
+      activeView.classList.remove('hidden');
+      activeTab.classList.replace('bg-gray-700', 'bg-blue-700');
+      activeTab.classList.replace('opacity-50', 'opacity-100');
+      activeTab.classList.replace('text-gray-400', 'text-white');
 
       if (tabName === 'stats') renderStatsView();
       if (tabName === 'shop') renderShop();
       if (tabName === 'arena') renderArena();
+      <!-- DEV-ONLY -->
+      if (tabName === 'bag') renderBag();
+      <!-- /DEV-ONLY -->
     }
 
     function routeUser() {
@@ -976,19 +1037,26 @@
 
       if (log[4] === 'TASK_APPROVE' || log[4] === 'AWESOME_MOVE') {
         if (detail.broadcast) return detail.broadcast;
-        let theTask = globalData.tasks.find(t => t.Task_ID === detail.taskId);
-        let subject = actor;
-        if (theTask) {
-          let assignees = String(theTask.Assignee_ID).split(',');
-          subject = assignees.map(aid => globalData.users.find(u => u.User_ID === aid)?.Name || aid).join(', ');
+        // 優先用 log 裡儲存的 playerName，避免 TEAM 任務或已刪除任務查錯人
+        let subject = detail.playerName || actor;
+        if (!detail.playerName) {
+          let theTask = globalData.tasks.find(t => t.Task_ID === detail.taskId);
+          if (theTask) {
+            let assignees = String(theTask.Assignee_ID).split(',');
+            subject = assignees.map(aid => globalData.users.find(u => u.User_ID === aid)?.Name || aid).join('、');
+          }
         }
+        let taskName = detail.taskName || '';
         let quality = parseInt(detail.quality) || 80;
         let tplList = [];
 
         const aiList = getWeeklyTemplates(detail.isHit ? 'SCORE' : 'MISS');
         if (aiList && aiList.length > 0) {
-          tplList = aiList; // 優先使用每週 AI 生成的模板
-        } else {
+          // 只接受含 {actor} 的模板，過濾 AI 格式錯誤的行
+          const validList = aiList.filter(t => t.includes('{actor}'));
+          if (validList.length > 0) tplList = validList;
+        }
+        if (tplList.length === 0) {
           // 備案：使用內建依照品質區分的模板
           if (detail.isHit) {
             if (quality < 80) tplList = SCORE_LOW;
@@ -1002,7 +1070,7 @@
         }
 
         let tpl = tplList[hashIndex % tplList.length];
-        return tpl.replace(/\{actor\}/g, subject).replace(/\{points\}/g, detail.points || 0);
+        return tpl.replace(/\{actor\}/g, subject).replace(/\{task\}/g, taskName).replace(/\{points\}/g, detail.points || 0);
       }
       if (log[4] === 'FOUL_CALLED' || log[4] === 'MONSTER_AND1' || log[4] === 'MONSTER_RUN') {
         const goldInfo = (detail.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
@@ -1854,6 +1922,149 @@
           showToast(`⚠️ 怪獸+${points}！${deducted ? ' ' + deducted : ''}`, 'red');
         });
     }
+
+    <!-- DEV-ONLY -->
+    function renderBag() {
+      if (!currentUser) return;
+      const container = document.getElementById('view-bag');
+
+      const myInventory = (globalData.inventory || []).filter(r => r.Player_ID === currentUser.User_ID);
+      const itemsDict = globalData.itemsDict || [];
+
+      const typeLabel = { currency: '貨幣', consumable: '消耗品' };
+      const typeOrder = ['currency', 'consumable'];
+      const typeColor = { currency: 'border-yellow-600', consumable: 'border-blue-600' };
+
+      const grouped = { currency: [], consumable: [] };
+      myInventory.forEach(inv => {
+        const item = itemsDict.find(i => i.Item_ID === inv.Item_ID);
+        if (!item || item.Type === 'collectible') return;
+        const t = item.Type || 'consumable';
+        if (grouped[t]) grouped[t].push({ ...item, qty: inv.Qty });
+      });
+
+      const allCollectibles = itemsDict.filter(i => i.Type === 'collectible');
+      const myCollectibleIds = new Set(myInventory.filter(inv => {
+        const item = itemsDict.find(i => i.Item_ID === inv.Item_ID);
+        return item && item.Type === 'collectible';
+      }).map(inv => inv.Item_ID));
+      const collectedCount = myCollectibleIds.size;
+      const totalCount = allCollectibles.length;
+
+      const dexEntry = totalCount > 0 ? `
+        <div class="mb-6">
+          <div class="text-gray-400 text-sm mb-2 uppercase tracking-wider">圖鑑</div>
+          <div class="bg-gray-700 p-4 pixel-border border-purple-600 flex items-center gap-4 cursor-pointer hover:bg-gray-600"
+               onclick="renderDex()">
+            <div class="text-3xl">📖</div>
+            <div class="flex flex-col">
+              <div class="text-white font-bold">收藏圖鑑</div>
+              <div class="text-purple-300 text-sm">${collectedCount} / ${totalCount} 已收集</div>
+            </div>
+            <div class="ml-auto text-gray-400 text-xl">▶</div>
+          </div>
+        </div>
+      ` : '';
+
+      const itemSections = typeOrder.map(t => {
+        const items = grouped[t];
+        if (!items || items.length === 0) return '';
+        return `
+          <div class="mb-6">
+            <div class="text-gray-400 text-sm mb-2 uppercase tracking-wider">${typeLabel[t]}</div>
+            <div class="grid grid-cols-2 gap-3">
+              ${items.map(item => `
+                <div class="bg-gray-700 p-3 pixel-border ${typeColor[t]} flex flex-col gap-1">
+                  <div class="text-white font-bold text-sm">${escapeHTML(item.Name)}</div>
+                  <div class="text-gray-400 text-xs">${escapeHTML(item.Description || '')}</div>
+                  <div class="text-yellow-300 text-sm font-bold mt-1">× ${item.qty}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const hasAnything = grouped.currency.length > 0 || grouped.consumable.length > 0 || totalCount > 0;
+
+      container.innerHTML = `
+        <div class="bg-gray-800 p-6 pixel-border-blue min-h-[300px]">
+          <h2 class="text-2xl text-yellow-400 mb-6">背包 (BAG)</h2>
+          ${!hasAnything ? `<p class="text-gray-500 text-center mt-12">背包是空的</p>` : itemSections + dexEntry}
+        </div>
+      `;
+    }
+
+    function renderDex() {
+      const container = document.getElementById('view-bag');
+      const itemsDict = globalData.itemsDict || [];
+      const myInventory = (globalData.inventory || []).filter(r => r.Player_ID === currentUser.User_ID);
+
+      const allCollectibles = itemsDict.filter(i => i.Type === 'collectible');
+      const myCollectibleIds = new Set(myInventory.filter(inv => {
+        const item = itemsDict.find(i => i.Item_ID === inv.Item_ID);
+        return item && item.Type === 'collectible';
+      }).map(inv => inv.Item_ID));
+
+      const cards = allCollectibles.map(item => {
+        const owned = myCollectibleIds.has(item.Item_ID);
+        if (owned) {
+          return `
+            <div class="bg-gray-700 pixel-border border-purple-600 cursor-pointer hover:bg-gray-600 flex flex-col items-center p-3 gap-2"
+                 onclick="openDexCard('${escapeHTML(item.Item_ID)}')">
+              <div class="w-full aspect-square bg-gray-900 flex items-center justify-center overflow-hidden">
+                ${item.Asset_Key
+                  ? `<img src="${escapeHTML(item.Asset_Key)}" class="w-full h-full object-contain">`
+                  : `<div class="text-gray-600 text-4xl">🃏</div>`}
+              </div>
+              <div class="text-white text-xs text-center font-bold">${escapeHTML(item.Name)}</div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="bg-gray-900 pixel-border border-gray-700 flex flex-col items-center p-3 gap-2 opacity-40">
+              <div class="w-full aspect-square bg-gray-800 flex items-center justify-center">
+                <div class="text-gray-600 text-4xl">？</div>
+              </div>
+              <div class="text-gray-600 text-xs text-center">???</div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      container.innerHTML = `
+        <div class="bg-gray-800 p-6 pixel-border-blue min-h-[300px]">
+          <div class="flex items-center gap-3 mb-6">
+            <button onclick="renderBag()" class="text-gray-400 hover:text-white text-xl">◀</button>
+            <h2 class="text-2xl text-yellow-400">收藏圖鑑</h2>
+            <span class="text-purple-300 text-sm ml-auto">${myCollectibleIds.size} / ${allCollectibles.length}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            ${cards || '<p class="text-gray-500 col-span-3 text-center mt-8">尚無圖鑑定義</p>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function openDexCard(itemId) {
+      const item = (globalData.itemsDict || []).find(i => i.Item_ID === itemId);
+      if (!item) return;
+      const modal = document.getElementById('dexCardModal');
+      document.getElementById('dexCardName').innerText = item.Name || '';
+      document.getElementById('dexCardDesc').innerText = item.Description || '';
+      document.getElementById('dexCardRarity').innerText = item.Rarity || '';
+      const img = document.getElementById('dexCardImg');
+      if (item.Asset_Key) {
+        img.src = item.Asset_Key;
+        img.classList.remove('hidden');
+        document.getElementById('dexCardImgPlaceholder').classList.add('hidden');
+      } else {
+        img.classList.add('hidden');
+        document.getElementById('dexCardImgPlaceholder').classList.remove('hidden');
+      }
+      modal.classList.remove('hidden');
+    }
+    <!-- /DEV-ONLY -->
 
     function renderShop() {
       if (!currentUser) return;
