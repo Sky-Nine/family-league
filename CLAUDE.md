@@ -12,23 +12,37 @@ Players: P1 "大寶" (age 11), P2 "二寶" (age 8), GM = parent coach.
 
 - **Frontend**: Single HTML file (`app/index.html`) — vanilla JS, Tailwind CSS via CDN, no build step
 - **Backend**: Google Apps Script (`app/Code.js`) — serverless JS hosted in GAS
-- **Database**: Google Sheets (8 normalized tables)
+- **Database**: Google Sheets (13 normalized tables)
 - **Deploy tool**: `clasp` CLI
 
 ## Development Commands
 
 ```bash
-# Push code to Google Apps Script
+# Push + deploy to PROD
+./deploy.sh
+
+# Push + deploy to DEV
+./DEV-deploy.sh
+
+# Push only (no deployment update)
 clasp push
 ```
 
 There is no local dev server or test runner. To test:
-1. Run `clasp push`
-2. In GAS UI, create a new Deployment (the URL does not auto-update on re-push)
-3. Visit the live Web App URL; use PINs 1111 (P1), 2222 (P2), 9999 (GM) to log in
-4. Backend logs: GAS Editor → View Logs (`Utilities.log` output)
+1. Run `./DEV-deploy.sh` for dev, `./deploy.sh` for prod
+2. Visit the corresponding Web App URL; use PINs 1111 (P1), 2222 (P2), 9999 (GM) to log in
+3. Backend logs: GAS Editor → View Logs (`Utilities.log` output)
 
-**Critical deployment note**: After `clasp push`, you must create a **new deployment** in the GAS UI — the existing deployment URL points to a snapshot and does not auto-update.
+**Dual GAS environments**: Prod and Dev are completely independent GAS projects with separate Google Sheets. `.clasp.json` defaults to DEV scriptId. Both deploy scripts auto-switch the scriptId, push, deploy, then restore to DEV.
+
+| Env | Script ID |
+|---|---|
+| PROD | `159Fj3QP7Ra2fvYu7DmK8f0CQ--ksXmSUNbQ9YwyMSJWnn54BWOVbPLfe` |
+| DEV | `1JYSmBmeJAvCSerNSb8uLyfIbqM5zJjrGqUHaIN3x4Seb83u6wXhVIpG4` |
+
+**Critical**: Never run `clasp push` or `clasp deploy` directly — a PreToolUse hook blocks it. Always use the deploy scripts. New features go to DEV first.
+
+**DEV-ONLY / PROD-ONLY blocks**: Wrap HTML in `<!-- DEV-ONLY -->...<!-- /DEV-ONLY -->` to strip from PROD builds, or `<!-- PROD-ONLY -->...<!-- /PROD-ONLY -->` to strip from DEV builds. The deploy scripts handle stripping automatically via Python regex.
 
 ### Sprite Pipeline
 
@@ -46,13 +60,13 @@ First run downloads rembg model (~170MB). Output lands at `final_sprite.png` in 
 ## Architecture
 
 ### Frontend (`app/index.html`, ≈1560 lines)
-Single-page app with PIN-based login → player dashboard or GM console. Tabs: Quests, Arena, Status, Shop. Polls backend every 30 seconds via `fetchData()`. All state lives in `currentUser` and `globalData` globals.
+Single-page app with PIN-based login → player dashboard or GM console. Player tabs: Quests, Stats, Bag, Shop, Arena. GM has a different nav. Polls backend every 30 seconds via `fetchData()`. All state lives in `currentUser` and `globalData` globals (types: `users`, `tasks`, `shopItems`, `redemptions`, `itemsDict`, `inventory`).
 
 Key constraint: Tailwind is loaded via CDN in JIT mode — class names must be hardcoded strings (no dynamic string concatenation for classes).
 
-Sprite animations use CSS `steps()` with `background-position` stepping across a horizontal sprite sheet. Sprite sheets live in `assets/characters/leonard/`.
+Sprite animations use CSS `steps()` with `background-position` stepping across a horizontal sprite sheet. Sprite sheets live in `assets/characters/Leonard/` (P1 Leonard) and `assets/characters/Sheldon/` (P2 Sheldon).
 
-**API_URL** is hardcoded at `app/index.html:445` — must be updated manually after each new GAS deployment.
+**API_URL** is injected via GAS HtmlService template — `const _GAS_BASE = "<?!= webappUrl ?>"` at `app/index.html:649`. No manual update needed after deployment. Assets are served from jsDelivr CDN: `const _ASSET_BASE = "<?!= assetBase ?>"` pointing to `https://cdn.jsdelivr.net/gh/Sky-Nine/family-league@main/`.
 
 ### Backend (`app/Code.js`, ≈810 lines)
 REST API exposed via `doGet()` (fetch all state) and `doPost()` (all mutations). Every request validates PIN server-side and checks an action whitelist. Concurrent writes are protected by `LockService`. All events are appended to the `Logs` sheet with a JSON detail payload.
@@ -69,21 +83,29 @@ Key functions triggered by GAS time-based triggers:
 
 | Sheet | Purpose |
 |---|---|
-| `Users` | Player/GM accounts, stats (Level, XP, Gold, MP) |
-| `Global_State` | Current season, team score, monster score |
+| `Users` | Player/GM accounts, stats (Level, EXP, Gold, Current_SP, Max_SP) |
+| `Global_State` | Season, team/monster scores, weekly scores, AI news, broadcast templates |
 | `Tasks` | Task instances with Status: Pending → Reviewing → Completed/Deleted |
-| `Logs` | Full audit trail; `Detail_JSON` holds scoring/foul data |
+| `Logs` | Full audit trail; `Detail_JSON` holds scoring/foul/level-up data |
 | `Daily_Templates` | Recurring task patterns; `Trigger_Days` is a 0=Sun…6=Sat bitmask |
-| `Shop_Items` | Reward catalog |
-| `Skills_Dict` | Skill definitions (future use) |
-| `Player_Skills` | Unlocked skills per player (future use) |
+| `Shop_Items` | Reward catalog with `Require_Approval` flag |
+| `Redemptions` | Shop purchase queue: `Pending → Approved/Rejected` (GM review); Gold deducted on create, refunded on rejection |
+| `Skills_Dict` | Skill definitions |
+| `Player_Skills` | Unlocked skills per player |
 | `News` | Archive of daily/weekly AI battle reports (Date, Season_ID, Content, Type) |
+| `Player_Streaks` | Daily EOD records for streak tracking |
+| `Items_Dict` | Collectible item catalog (Type, Rarity, Asset_Key, Category) |
+| `Inventory` | Player item ownership (Player_ID, Item_ID, Qty, Acquired_Date) |
 
 ## Core Game Mechanics
 
 **Task state machine**: `Pending → Reviewing` (player submits) `→ Completed` (GM approves) or back to `Pending` (GM rejects). GM can also delete tasks.
 
 **Scoring**: GM sets a quality grade (60/80/90/95/99%). Backend runs `Math.random() < quality/100` to determine if the shot goes in. Hit = 3 pts (S/A/B difficulty) or 2 pts (C/D/E). XP and Gold are granted regardless of hit/miss ("appearance fee" to prevent frustration).
+
+**Economy**: EXP = Gold (1:1). Difficulty rates: E=5, D=10, C=18, B=28, A=45, S=70. GM may adjust ±20%. Daily target ~79G/day at 90% completion rate.
+
+**MVP Fragments**: Quality ≥90% drops MVP Fragments — the only currency for future RPG class unlocks (120 fragments) and role changes (40 fragments). This is the anti-sandbagging mechanic.
 
 **AI Commentary**: Broadcast text is chosen deterministically using `getStringHash(logId)` so all viewers see the same commentary for a given log entry.
 
@@ -97,16 +119,25 @@ Key functions triggered by GAS time-based triggers:
 - `app/Code.js` — entire backend
 - `appsscript.json` — GAS config (timezone: Asia/Taipei, webapp access: ANYONE_ANONYMOUS)
 - `.clasp.json` — clasp CLI config with `scriptId`
-- `docs/design/Game Design Document_2.md` — full GDD with phase roadmap and skill tree
-- `docs/guides/Project Handover.md` — detailed architecture notes
+- `deploy.sh` — one-step push + deploy (hardcoded `DEPLOYMENT_ID`)
+- `docs/design/Game_Design_Document_Final.md` — full GDD with phase roadmap and skill tree
+- `docs/design/Economy_System.md` — Gold/EXP rates, shop items, penalty system, 擺爛 state machine
+- `docs/design/Phase1_Backlog.md` — current sprint backlog
 - `docs/specs/skill_pixel_sprite_pipeline.md` — sprite generation pipeline spec
-- `assets/characters/leonard/` — pixel art sprite sheets for CSS step animations
+- `assets/characters/Leonard/` — P1 sprite sheets (idle, dribble, shot, sprint…)
+- `assets/characters/Sheldon/` — P2 sprite sheets (same action set)
 - `tools/pipeline/sprite_gen.py` — automated sprite sheet generator (Leonardo API + rembg)
 - `tools/pipeline/manual_crop.py` — manual frame correction tool
+
+## Known Bugs (Phase 1 — affects live game)
+
+- **Daily_Templates values stale**: Live sheet still has old difficulty→Gold values (D:10/5, C:20/10). Run `updateTaskEconomy()` once from GAS editor to fix. New economy formula (D:10/10, C:18/18) is enforced by backend for new tasks but the seed data is wrong.
 
 ## GAS-Specific Gotchas
 
 - `appsscript.json` sets `executeAs: USER_DEPLOYING` and `access: ANYONE_ANONYMOUS` — required for anonymous frontend access.
 - Formula injection: `safeAppendRow()` escapes values starting with `=` before writing to Sheets.
 - All timestamps use GMT+8 (Asia/Taipei) regardless of where GAS executes.
-- The MP system is cosmetic/placeholder — it exists in the schema but is not yet mechanically gated.
+- SP (Skill Points) schema is live (`Current_SP`, `Max_SP` in Users; `getMaxSpForLevel_()` in Code.js) but skills are not yet mechanically triggered in gameplay.
+- Broadcast templates (`Weekly_Score_Templates` etc. in Global_State) are pre-generated by `generateWeeklyBroadcastTemplates()` at week start and consumed deterministically via `getStringHash(logId)` — no per-event Gemini call.
+- `scratch/` contains throwaway scripts and planning docs — not production code.

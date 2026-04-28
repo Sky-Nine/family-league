@@ -47,7 +47,32 @@
       "Bash(awk END{print NR} *)",
       "Bash(diff /Users/sky/family-league/Code_84.js /Users/sky/family-league/app/Code.js)",
       "Bash(diff /Users/sky/family-league/index_84.html /Users/sky/family-league/app/index.html)",
-      "Bash(gemini -p 'Compare these two diffs and summarize ONLY the functional differences \\(not whitespace/comment changes\\). Focus on: new functions, removed functions, changed logic, new HTML/JS features. Be concise. *)"
+      "Bash(gemini -p 'Compare these two diffs and summarize ONLY the functional differences \\(not whitespace/comment changes\\). Focus on: new functions, removed functions, changed logic, new HTML/JS features. Be concise. *)",
+      "Bash(osascript *)",
+      "Bash(chmod +x *)",
+      "Bash(awk -F: '$2 > 583')",
+      "Bash(gemini *)",
+      "Bash(GOOGLE_GENAI_USE_GCA=true gemini *)",
+      "Bash(GOOGLE_GENAI_USE_GCA=true echo y)",
+      "Bash(./deploy.sh *)",
+      "Bash(./DEV-deploy.sh *)",
+      "Bash(git stash *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(bash -n /Users/sky/family-league/deploy.sh)",
+      "Bash(bash -n /Users/sky/family-league/DEV-deploy.sh)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null); if echo \"$cmd\" | grep -qE '(^|[;&| ]+)clasp (push|deploy)'; then echo '{\"continue\":false,\"stopReason\":\"BLOCKED: clasp push/deploy 直接執行被封鎖。請改用 ./deploy.sh (PROD) 或 ./DEV-deploy.sh (DEV)。\"}'; exit 1; fi"
+          }
+        ]
+      }
     ]
   }
 }

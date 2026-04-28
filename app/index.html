@@ -214,7 +214,7 @@
 <body class="p-4 md:p-8 flex flex-col items-center min-h-screen text-base md:text-lg overflow-y-scroll">
 
   <!-- Intro Story Modal -->
-  <div id="introModal" class="hidden" style="display:none!important" onmousedown="setIntroHolding(true)" onmouseup="setIntroHolding(false)"
+  <div id="introModal" class="hidden" onmousedown="setIntroHolding(true)" onmouseup="setIntroHolding(false)"
     onmouseleave="setIntroHolding(false)" ontouchstart="setIntroHolding(true)" ontouchend="setIntroHolding(false)">
     <div id="introContent">
       <div class="text-yellow-400 text-3xl font-bold mb-6">🏀 魔幻籃球聯盟 🏀</div>
@@ -261,7 +261,7 @@
   </div>
 
   <div class="w-full max-w-2xl flex justify-between items-center mb-6">
-    <h1 class="text-2xl md:text-4xl text-yellow-400 leading-loose"><span class="text-red-400">[DEV]</span> 魔幻籃球聯盟 <span
+    <h1 class="text-2xl md:text-4xl text-yellow-400 leading-loose">魔幻籃球聯盟 <span
         class="text-lg md:text-2xl text-gray-400">Noob Camp</span></h1>
     <button id="logoutBtn" onclick="logout()"
       class="hidden bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm pixel-border">LOGOUT</button>
@@ -342,6 +342,19 @@
 
   <div id="mainDashboard" class="hidden w-full max-w-2xl flex flex-col gap-6">
 
+    <!-- PROD-ONLY -->
+    <div class="flex gap-1 mb-2 text-sm md:text-base">
+      <button onclick="switchTab('quests')" id="tab-quests"
+        class="flex-1 bg-blue-700 py-3 text-white pixel-border opacity-100">QUESTS</button>
+      <button onclick="switchTab('arena')" id="tab-arena"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">ARENA</button>
+      <button onclick="switchTab('stats')" id="tab-stats"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">STATUS</button>
+      <button onclick="switchTab('shop')" id="tab-shop"
+        class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50 text-yellow-500">SHOP</button>
+    </div>
+    <!-- /PROD-ONLY -->
+    <!-- DEV-ONLY -->
     <div class="flex flex-col gap-1 mb-2 text-sm md:text-base">
       <div class="flex gap-1">
         <button onclick="switchTab('quests')" id="tab-quests"
@@ -358,6 +371,7 @@
           class="flex-1 bg-gray-700 py-3 text-gray-400 pixel-border opacity-50">⚔️ ARENA</button>
       </div>
     </div>
+    <!-- /DEV-ONLY -->
 
     <div id="view-arena" class="hidden flex flex-col gap-6">
 
@@ -592,15 +606,18 @@
       </div>
     </div>
 
+    <!-- DEV-ONLY -->
     <div id="view-bag" class="hidden flex-col gap-6">
       <div class="bg-gray-800 p-6 pixel-border-blue min-h-[300px]">
         <h2 class="text-2xl text-yellow-400 mb-6">背包 (BAG)</h2>
         <p class="text-gray-400 text-center mt-8">— 施工中 —</p>
       </div>
     </div>
+    <!-- /DEV-ONLY -->
 
   </div>
 
+  <!-- DEV-ONLY -->
   <div id="dexCardModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
        onclick="this.classList.add('hidden')">
     <div class="bg-gray-800 pixel-border border-purple-600 p-6 max-w-sm w-full mx-4 flex flex-col gap-4"
@@ -620,6 +637,7 @@
       <div id="dexCardDesc" class="text-gray-300 text-sm leading-relaxed"></div>
     </div>
   </div>
+  <!-- /DEV-ONLY -->
 
   <div id="toast"
     class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 pixel-border hidden transition-opacity z-50 text-lg uppercase">
@@ -811,20 +829,28 @@
 
     function switchTab(tabName) {
       ['quests', 'arena', 'stats', 'shop', 'bag'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`tab-${t}`).classList.replace('bg-blue-700', 'bg-gray-700');
-        document.getElementById(`tab-${t}`).classList.replace('opacity-100', 'opacity-50');
-        document.getElementById(`tab-${t}`).classList.replace('text-white', 'text-gray-400');
+        const view = document.getElementById(`view-${t}`);
+        const tab = document.getElementById(`tab-${t}`);
+        if (!view || !tab) return;
+        view.classList.add('hidden');
+        tab.classList.replace('bg-blue-700', 'bg-gray-700');
+        tab.classList.replace('opacity-100', 'opacity-50');
+        tab.classList.replace('text-white', 'text-gray-400');
       });
-      document.getElementById(`view-${tabName}`).classList.remove('hidden');
-      document.getElementById(`tab-${tabName}`).classList.replace('bg-gray-700', 'bg-blue-700');
-      document.getElementById(`tab-${tabName}`).classList.replace('opacity-50', 'opacity-100');
-      document.getElementById(`tab-${tabName}`).classList.replace('text-gray-400', 'text-white');
+      const activeView = document.getElementById(`view-${tabName}`);
+      const activeTab = document.getElementById(`tab-${tabName}`);
+      if (!activeView || !activeTab) return;
+      activeView.classList.remove('hidden');
+      activeTab.classList.replace('bg-gray-700', 'bg-blue-700');
+      activeTab.classList.replace('opacity-50', 'opacity-100');
+      activeTab.classList.replace('text-gray-400', 'text-white');
 
       if (tabName === 'stats') renderStatsView();
       if (tabName === 'shop') renderShop();
       if (tabName === 'arena') renderArena();
+      <!-- DEV-ONLY -->
       if (tabName === 'bag') renderBag();
+      <!-- /DEV-ONLY -->
     }
 
     function routeUser() {
@@ -1011,19 +1037,26 @@
 
       if (log[4] === 'TASK_APPROVE' || log[4] === 'AWESOME_MOVE') {
         if (detail.broadcast) return detail.broadcast;
-        let theTask = globalData.tasks.find(t => t.Task_ID === detail.taskId);
-        let subject = actor;
-        if (theTask) {
-          let assignees = String(theTask.Assignee_ID).split(',');
-          subject = assignees.map(aid => globalData.users.find(u => u.User_ID === aid)?.Name || aid).join(', ');
+        // 優先用 log 裡儲存的 playerName，避免 TEAM 任務或已刪除任務查錯人
+        let subject = detail.playerName || actor;
+        if (!detail.playerName) {
+          let theTask = globalData.tasks.find(t => t.Task_ID === detail.taskId);
+          if (theTask) {
+            let assignees = String(theTask.Assignee_ID).split(',');
+            subject = assignees.map(aid => globalData.users.find(u => u.User_ID === aid)?.Name || aid).join('、');
+          }
         }
+        let taskName = detail.taskName || '';
         let quality = parseInt(detail.quality) || 80;
         let tplList = [];
 
         const aiList = getWeeklyTemplates(detail.isHit ? 'SCORE' : 'MISS');
         if (aiList && aiList.length > 0) {
-          tplList = aiList; // 優先使用每週 AI 生成的模板
-        } else {
+          // 只接受含 {actor} 的模板，過濾 AI 格式錯誤的行
+          const validList = aiList.filter(t => t.includes('{actor}'));
+          if (validList.length > 0) tplList = validList;
+        }
+        if (tplList.length === 0) {
           // 備案：使用內建依照品質區分的模板
           if (detail.isHit) {
             if (quality < 80) tplList = SCORE_LOW;
@@ -1037,7 +1070,7 @@
         }
 
         let tpl = tplList[hashIndex % tplList.length];
-        return tpl.replace(/\{actor\}/g, subject).replace(/\{points\}/g, detail.points || 0);
+        return tpl.replace(/\{actor\}/g, subject).replace(/\{task\}/g, taskName).replace(/\{points\}/g, detail.points || 0);
       }
       if (log[4] === 'FOUL_CALLED' || log[4] === 'MONSTER_AND1' || log[4] === 'MONSTER_RUN') {
         const goldInfo = (detail.deductedPlayers || []).map(p => `${p.name} -${p.goldDeducted}G`).join(' / ');
@@ -1890,6 +1923,7 @@
         });
     }
 
+    <!-- DEV-ONLY -->
     function renderBag() {
       if (!currentUser) return;
       const container = document.getElementById('view-bag');
@@ -2030,6 +2064,7 @@
       }
       modal.classList.remove('hidden');
     }
+    <!-- /DEV-ONLY -->
 
     function renderShop() {
       if (!currentUser) return;
@@ -2391,7 +2426,8 @@
     }
 
     function startMusic() {
-      return; // DEV: music disabled
+      if (musicAudio) return;
+      _playTrack(musicIdx);
     }
 
     function stopMusic() {
